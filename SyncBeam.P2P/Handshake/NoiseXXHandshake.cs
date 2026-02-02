@@ -15,7 +15,6 @@ public sealed class NoiseXXHandshake : IDisposable
 
     private readonly SymmetricState _symmetricState;
     private readonly PeerIdentity _localIdentity;
-    private readonly byte[] _localSecretHash;
 
     private byte[]? _localEphemeralPrivate;
     private byte[]? _localEphemeralPublic;
@@ -25,12 +24,10 @@ public sealed class NoiseXXHandshake : IDisposable
     private bool _disposed;
 
     public RemotePeerIdentity? RemotePeer { get; private set; }
-    public byte[]? RemoteSecretHash { get; private set; }
 
-    public NoiseXXHandshake(PeerIdentity localIdentity, byte[] localSecretHash)
+    public NoiseXXHandshake(PeerIdentity localIdentity)
     {
         _localIdentity = localIdentity;
-        _localSecretHash = localSecretHash;
         _symmetricState = new SymmetricState(ProtocolName);
     }
 
@@ -171,24 +168,11 @@ public sealed class NoiseXXHandshake : IDisposable
         return isInitiator ? (c1, c2) : (c2, c1);
     }
 
-    /// <summary>
-    /// Verify that the remote peer has the same project secret.
-    /// </summary>
-    public bool VerifySecretHash()
-    {
-        if (RemoteSecretHash == null)
-            return false;
-
-        return CryptoHelpers.ConstantTimeEquals(_localSecretHash, RemoteSecretHash);
-    }
-
     private byte[] CreatePayload()
     {
-        // Payload: secret_hash (32) + timestamp (8) + signature of (handshake_hash + timestamp)
+        // Payload: timestamp (8) + signature of (handshake_hash + timestamp)
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
-
-        writer.Write(_localSecretHash);
 
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         writer.Write(timestamp);
@@ -210,7 +194,6 @@ public sealed class NoiseXXHandshake : IDisposable
         using var ms = new MemoryStream(payload);
         using var reader = new BinaryReader(ms);
 
-        RemoteSecretHash = reader.ReadBytes(32);
         var timestamp = reader.ReadInt64();
 
         // Verify timestamp is within acceptable range (5 minutes)

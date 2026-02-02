@@ -17,7 +17,6 @@ public partial class MainWindow : Window
     private ClipboardWatcher? _clipboardWatcher;
     private OutboxWatcher? _outboxWatcher;
 
-    private string _projectSecret;
     private readonly string _syncBeamPath;
 
     public MainWindow()
@@ -28,7 +27,8 @@ public partial class MainWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "SyncBeam");
 
-        _projectSecret = LoadOrCreateSecret();
+        // Ensure SyncBeam directory exists
+        Directory.CreateDirectory(_syncBeamPath);
 
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
@@ -74,16 +74,15 @@ public partial class MainWindow : Window
 
     private void InitializeBackend()
     {
-        // Initialize PeerManager
-        _peerManager = new PeerManager(_projectSecret);
+        // Initialize PeerManager (auto-discovers and auto-connects to LAN peers)
+        _peerManager = new PeerManager();
 
         _peerManager.PeerDiscovered += (_, e) =>
         {
             SendToUI("peerDiscovered", new
             {
                 peerId = e.PeerId,
-                endpoint = e.Endpoint.ToString(),
-                secretMatches = e.SecretMatches
+                endpoint = e.Endpoint.ToString()
             });
         };
 
@@ -99,6 +98,24 @@ public partial class MainWindow : Window
         _peerManager.PeerDisconnected += (_, e) =>
         {
             SendToUI("peerDisconnected", new { peerId = e.PeerId });
+        };
+
+        _peerManager.NetworkDeviceDiscovered += (_, e) =>
+        {
+            SendToUI("networkDevice", new
+            {
+                ip = e.Device.IpAddress.ToString(),
+                hostname = e.Device.Hostname,
+                hasSyncBeam = e.Device.HasSyncBeam,
+                peerId = e.Device.SyncBeamPeerId,
+                isConnected = e.Device.IsConnected,
+                deviceType = e.Device.DeviceType.ToString()
+            });
+        };
+
+        _peerManager.NetworkScanCompleted += (_, _) =>
+        {
+            SendToUI("networkScanCompleted", new { });
         };
 
         _peerManager.MessageReceived += OnPeerMessage;
@@ -179,8 +196,7 @@ public partial class MainWindow : Window
             localPeerId = _peerManager.LocalPeerId,
             listenPort = _peerManager.ListenPort,
             inboxPath = Path.Combine(_syncBeamPath, "inbox"),
-            outboxPath = outboxPath,
-            projectSecret = _projectSecret
+            outboxPath = outboxPath
         });
     }
 
@@ -216,13 +232,15 @@ public partial class MainWindow : Window
     {
         try
         {
-            var json = e.WebMessageAsJson;
+            var json = e.TryGetWebMessageAsString();
+            System.Diagnostics.Debug.WriteLine($"WebMessage received: {json}");
             var message = JsonDocument.Parse(json);
             var action = message.RootElement.GetProperty("action").GetString();
             var data = message.RootElement.TryGetProperty("data", out var dataElement)
                 ? dataElement
                 : default;
 
+            System.Diagnostics.Debug.WriteLine($"Handling action: {action}");
             HandleUIMessage(action, data);
         }
         catch (Exception ex)
@@ -247,6 +265,10 @@ public partial class MainWindow : Window
                 _peerManager.RefreshDiscovery();
                 break;
 
+            case "scanNetwork":
+                _peerManager.ScanNetwork();
+                break;
+
             case "acceptFile":
                 var acceptPeerId = data.GetProperty("peerId").GetString();
                 var acceptTransferId = data.GetProperty("transferId").GetString();
@@ -265,35 +287,6 @@ public partial class MainWindow : Window
                 var enabled = data.GetProperty("enabled").GetBoolean();
                 if (_clipboardWatcher != null)
                     _clipboardWatcher.IsEnabled = enabled;
-                break;
-
-            case "setSecret":
-                try
-                {
-                    var newSecret = data.GetProperty("secret").GetString();
-                    System.Diagnostics.Debug.WriteLine($"setSecret received: {newSecret}");
-                    if (!string.IsNullOrEmpty(newSecret))
-                    {
-                        SaveSecret(newSecret);
-                        if (newSecret != _projectSecret)
-                        {
-                            RestartWithNewSecret(newSecret);
-                        }
-                        else
-                        {
-                            SendToUI("secretChanged", new
-                            {
-                                localPeerId = _peerManager?.LocalPeerId,
-                                listenPort = _peerManager?.ListenPort,
-                                projectSecret = newSecret
-                            });
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"setSecret error: {ex.Message}");
-                }
                 break;
 
             case "getState":
@@ -327,8 +320,7 @@ public partial class MainWindow : Window
             localPeerId = _peerManager.LocalPeerId,
             listenPort = _peerManager.ListenPort,
             connectedPeers = peers,
-            clipboardSyncEnabled = _clipboardWatcher?.IsEnabled ?? false,
-            projectSecret = _projectSecret
+            clipboardSyncEnabled = _clipboardWatcher?.IsEnabled ?? false
         });
     }
 
@@ -346,123 +338,6 @@ public partial class MainWindow : Window
             {
                 // WebView might not be ready
             }
-        });
-    }
-
-    private string LoadOrCreateSecret()
-    {
-        var secretPath = Path.Combine(_syncBeamPath, ".secret");
-        Directory.CreateDirectory(_syncBeamPath);
-
-        if (File.Exists(secretPath))
-        {
-            return File.ReadAllText(secretPath).Trim();
-        }
-
-        var secret = $"SyncBeam-{Guid.NewGuid():N}";
-        File.WriteAllText(secretPath, secret);
-        return secret;
-    }
-
-    private void SaveSecret(string secret)
-    {
-        var secretPath = Path.Combine(_syncBeamPath, ".secret");
-        File.WriteAllText(secretPath, secret);
-    }
-
-    private void RestartWithNewSecret(string newSecret)
-    {
-        // Stop current services
-        _clipboardWatcher?.Stop();
-        _outboxWatcher?.Dispose();
-        _peerManager?.Dispose();
-
-        // Update secret
-        _projectSecret = newSecret;
-
-        // Reinitialize
-        _peerManager = new PeerManager(_projectSecret);
-
-        _peerManager.PeerDiscovered += (_, e) =>
-        {
-            SendToUI("peerDiscovered", new
-            {
-                peerId = e.PeerId,
-                endpoint = e.Endpoint.ToString(),
-                secretMatches = e.SecretMatches
-            });
-        };
-
-        _peerManager.PeerConnected += (_, e) =>
-        {
-            SendToUI("peerConnected", new
-            {
-                peerId = e.PeerId,
-                isIncoming = e.Peer.IsIncoming
-            });
-        };
-
-        _peerManager.PeerDisconnected += (_, e) =>
-        {
-            SendToUI("peerDisconnected", new { peerId = e.PeerId });
-        };
-
-        _peerManager.MessageReceived += OnPeerMessage;
-
-        // Reinitialize transfer engine
-        _transferEngine = new FileTransferEngine(_peerManager, _syncBeamPath);
-
-        _transferEngine.TransferProgress += (_, e) =>
-        {
-            SendToUI("transferProgress", new
-            {
-                transferId = e.TransferId,
-                fileName = e.FileName,
-                progress = e.Progress,
-                bytesTransferred = e.BytesTransferred,
-                totalBytes = e.TotalBytes
-            });
-        };
-
-        _transferEngine.TransferCompleted += (_, e) =>
-        {
-            SendToUI("transferCompleted", new
-            {
-                transferId = e.TransferId,
-                fileName = e.FileName,
-                success = e.Success,
-                filePath = e.FilePath,
-                errorMessage = e.ErrorMessage
-            });
-        };
-
-        // Reinitialize clipboard watcher
-        _clipboardWatcher = new ClipboardWatcher(_peerManager);
-        _clipboardWatcher.ClipboardReceived += (_, e) =>
-        {
-            SendToUI("clipboardReceived", new
-            {
-                peerId = e.PeerId,
-                contentType = e.ContentType.ToString(),
-                dataSize = e.DataSize
-            });
-        };
-
-        // Reinitialize outbox watcher
-        var outboxPath = Path.Combine(_syncBeamPath, "outbox");
-        _outboxWatcher = new OutboxWatcher(_transferEngine, outboxPath);
-
-        // Start everything
-        _peerManager.Start();
-        _clipboardWatcher.Start();
-        _outboxWatcher.Start();
-
-        // Send updated state
-        SendToUI("secretChanged", new
-        {
-            localPeerId = _peerManager.LocalPeerId,
-            listenPort = _peerManager.ListenPort,
-            projectSecret = _projectSecret
         });
     }
 

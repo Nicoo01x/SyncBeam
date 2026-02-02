@@ -11,7 +11,6 @@ public sealed class ConnectionListener : IDisposable
 {
     private readonly TcpListener _listener;
     private readonly PeerIdentity _localIdentity;
-    private readonly string _projectSecret;
     private CancellationTokenSource? _cts;
     private Task? _acceptTask;
     private bool _disposed;
@@ -22,10 +21,9 @@ public sealed class ConnectionListener : IDisposable
     public event EventHandler<PeerConnectedEventArgs>? PeerConnected;
     public event EventHandler<PeerConnectionFailedEventArgs>? ConnectionFailed;
 
-    public ConnectionListener(PeerIdentity localIdentity, string projectSecret, int port = 0)
+    public ConnectionListener(PeerIdentity localIdentity, int port = 0)
     {
         _localIdentity = localIdentity;
-        _projectSecret = projectSecret;
 
         _listener = new TcpListener(IPAddress.Any, port);
         _listener.Start();
@@ -101,7 +99,7 @@ public sealed class ConnectionListener : IDisposable
             client.ReceiveTimeout = 30000;
             client.SendTimeout = 30000;
 
-            transport = new SecureTransport(client, _localIdentity, _projectSecret);
+            transport = new SecureTransport(client, _localIdentity);
 
             using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             handshakeCts.CancelAfter(TimeSpan.FromSeconds(30));
@@ -146,7 +144,6 @@ public static class ConnectionFactory
     public static async Task<SecureTransport> ConnectAsync(
         IPEndPoint endpoint,
         PeerIdentity localIdentity,
-        string projectSecret,
         CancellationToken ct = default)
     {
         var client = new TcpClient();
@@ -161,7 +158,7 @@ public static class ConnectionFactory
 
             await client.ConnectAsync(endpoint.Address, endpoint.Port, connectCts.Token);
 
-            transport = new SecureTransport(client, localIdentity, projectSecret);
+            transport = new SecureTransport(client, localIdentity);
 
             using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             handshakeCts.CancelAfter(TimeSpan.FromSeconds(30));

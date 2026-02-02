@@ -13,7 +13,6 @@ public sealed class SecureTransport : IDisposable
     private readonly TcpClient _client;
     private readonly NetworkStream _stream;
     private readonly PeerIdentity _localIdentity;
-    private readonly byte[] _secretHash;
 
     private AesGcmCipher? _outboundCipher;
     private AesGcmCipher? _inboundCipher;
@@ -26,12 +25,11 @@ public sealed class SecureTransport : IDisposable
     public RemotePeerIdentity? RemotePeer { get; private set; }
     public bool IsConnected => _client.Connected && _isHandshakeComplete;
 
-    public SecureTransport(TcpClient client, PeerIdentity localIdentity, string projectSecret)
+    public SecureTransport(TcpClient client, PeerIdentity localIdentity)
     {
         _client = client;
         _stream = client.GetStream();
         _localIdentity = localIdentity;
-        _secretHash = CryptoHelpers.ComputeSecretHash(projectSecret);
     }
 
     /// <summary>
@@ -39,7 +37,7 @@ public sealed class SecureTransport : IDisposable
     /// </summary>
     public async Task<bool> HandshakeAsInitiatorAsync(CancellationToken ct = default)
     {
-        using var handshake = new NoiseXXHandshake(_localIdentity, _secretHash);
+        using var handshake = new NoiseXXHandshake(_localIdentity);
 
         // Step 1: Send initiator hello
         var hello = handshake.CreateInitiatorHello();
@@ -53,10 +51,6 @@ public sealed class SecureTransport : IDisposable
         // Step 3: Process and send final message
         var finalMsg = handshake.ProcessResponderAndFinalize(responderMsg);
         await SendRawFrameAsync(MessageType.HandshakeFinal, finalMsg, ct);
-
-        // Verify secret hash
-        if (!handshake.VerifySecretHash())
-            throw new InvalidOperationException("Secret hash mismatch - peer not authorized");
 
         // Step 4: Receive handshake complete
         (type, _) = await ReceiveRawFrameAsync(ct);
@@ -76,7 +70,7 @@ public sealed class SecureTransport : IDisposable
     /// </summary>
     public async Task<bool> HandshakeAsResponderAsync(CancellationToken ct = default)
     {
-        using var handshake = new NoiseXXHandshake(_localIdentity, _secretHash);
+        using var handshake = new NoiseXXHandshake(_localIdentity);
 
         // Step 1: Receive initiator hello
         var (type, initiatorHello) = await ReceiveRawFrameAsync(ct);
@@ -93,10 +87,6 @@ public sealed class SecureTransport : IDisposable
             throw new InvalidOperationException($"Expected HandshakeFinal, got {type}");
 
         handshake.ProcessInitiatorFinal(finalMsg);
-
-        // Verify secret hash
-        if (!handshake.VerifySecretHash())
-            throw new InvalidOperationException("Secret hash mismatch - peer not authorized");
 
         // Send handshake complete
         await SendRawFrameAsync(MessageType.HandshakeComplete, [], ct);

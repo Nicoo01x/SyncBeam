@@ -9,14 +9,6 @@ namespace SyncBeam.P2P.Core;
 public static class CryptoHelpers
 {
     /// <summary>
-    /// Computes SHA256 hash of the project secret for peer identification.
-    /// </summary>
-    public static byte[] ComputeSecretHash(string projectSecret)
-    {
-        return SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(projectSecret));
-    }
-
-    /// <summary>
     /// Generates cryptographically secure random bytes.
     /// </summary>
     public static byte[] GenerateRandomBytes(int count)
@@ -65,13 +57,5 @@ public static class CryptoHelpers
     public static byte[] HkdfDerive(byte[] inputKeyMaterial, byte[] salt, byte[] info, int outputLength)
     {
         return HKDF.DeriveKey(HashAlgorithmName.SHA256, inputKeyMaterial, outputLength, salt, info);
-    }
-
-    /// <summary>
-    /// Constant-time comparison of two byte arrays.
-    /// </summary>
-    public static bool ConstantTimeEquals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
-    {
-        return CryptographicOperations.FixedTimeEquals(a, b);
     }
 }

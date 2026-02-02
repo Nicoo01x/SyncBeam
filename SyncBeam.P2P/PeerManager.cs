@@ -10,50 +10,69 @@ namespace SyncBeam.P2P;
 /// <summary>
 /// Central manager for all P2P operations.
 /// Coordinates discovery, connections, and message routing.
+/// Auto-connects to discovered peers on the same LAN.
+/// Scans network to show all devices.
 /// </summary>
 public sealed class PeerManager : IDisposable
 {
     private readonly PeerIdentity _localIdentity;
-    private readonly string _projectSecret;
     private readonly MdnsDiscovery _discovery;
+    private readonly NetworkScanner _networkScanner;
     private readonly ConnectionListener _listener;
     private readonly ConcurrentDictionary<string, ConnectedPeer> _peers = new();
     private readonly ConcurrentDictionary<string, IPEndPoint> _discoveredEndpoints = new();
+    private readonly ConcurrentDictionary<string, bool> _connectingPeers = new();
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
     public string LocalPeerId => _localIdentity.PeerId;
     public int ListenPort => _listener.Port;
     public IReadOnlyDictionary<string, ConnectedPeer> ConnectedPeers => _peers;
+    public IReadOnlyDictionary<string, NetworkDevice> NetworkDevices => _networkScanner.Devices;
 
     public event EventHandler<PeerEventArgs>? PeerConnected;
     public event EventHandler<PeerEventArgs>? PeerDisconnected;
     public event EventHandler<PeerDiscoveredEventArgs>? PeerDiscovered;
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
+    public event EventHandler<NetworkDeviceEventArgs>? NetworkDeviceDiscovered;
+    public event EventHandler? NetworkScanCompleted;
 
-    public PeerManager(string projectSecret, int listenPort = 0)
+    public PeerManager(int listenPort = 0)
     {
-        _projectSecret = projectSecret;
         _localIdentity = PeerIdentity.Generate();
 
-        _listener = new ConnectionListener(_localIdentity, projectSecret, listenPort);
+        _listener = new ConnectionListener(_localIdentity, listenPort);
         _listener.PeerConnected += OnIncomingConnection;
         _listener.ConnectionFailed += OnConnectionFailed;
 
-        _discovery = new MdnsDiscovery(_localIdentity, projectSecret, _listener.Port);
+        _discovery = new MdnsDiscovery(_localIdentity, _listener.Port);
         _discovery.PeerDiscovered += OnPeerDiscovered;
         _discovery.PeerLost += OnPeerLost;
+
+        _networkScanner = new NetworkScanner();
+        _networkScanner.DeviceDiscovered += OnNetworkDeviceDiscovered;
+        _networkScanner.ScanCompleted += (_, _) => NetworkScanCompleted?.Invoke(this, EventArgs.Empty);
     }
 
     public void Start()
     {
         _listener.Start();
         _discovery.Start();
+        _networkScanner.StartScan();
+    }
+
+    /// <summary>
+    /// Rescan the network for all devices.
+    /// </summary>
+    public void ScanNetwork()
+    {
+        _networkScanner.StartScan();
     }
 
     public void Stop()
     {
         _cts.Cancel();
+        _networkScanner.StopScan();
         _discovery.Stop();
         _listener.Stop();
 
@@ -72,13 +91,17 @@ public sealed class PeerManager : IDisposable
         if (_peers.ContainsKey(peerId))
             return true; // Already connected
 
-        if (!_discoveredEndpoints.TryGetValue(peerId, out var endpoint))
+        // Prevent concurrent connection attempts to the same peer
+        if (!_connectingPeers.TryAdd(peerId, true))
             return false;
 
         try
         {
+            if (!_discoveredEndpoints.TryGetValue(peerId, out var endpoint))
+                return false;
+
             var transport = await ConnectionFactory.ConnectAsync(
-                endpoint, _localIdentity, _projectSecret, _cts.Token);
+                endpoint, _localIdentity, _cts.Token);
 
             var peer = new ConnectedPeer(transport, false);
             if (_peers.TryAdd(peerId, peer))
@@ -98,6 +121,10 @@ public sealed class PeerManager : IDisposable
         catch
         {
             // Connection failed
+        }
+        finally
+        {
+            _connectingPeers.TryRemove(peerId, out _);
         }
 
         return false;
@@ -168,12 +195,26 @@ public sealed class PeerManager : IDisposable
     private void OnPeerDiscovered(object? sender, DiscoveredPeerEventArgs e)
     {
         _discoveredEndpoints.TryAdd(e.PeerId, e.Endpoint);
+
+        // Mark this device as having SyncBeam in the network scanner
+        _networkScanner.MarkAsSyncBeamDevice(e.Endpoint.Address, e.PeerId);
+
         PeerDiscovered?.Invoke(this, new PeerDiscoveredEventArgs
         {
             PeerId = e.PeerId,
-            Endpoint = e.Endpoint,
-            SecretMatches = e.SecretMatches
+            Endpoint = e.Endpoint
         });
+
+        // Auto-connect to discovered peers
+        if (!_peers.ContainsKey(e.PeerId) && !_connectingPeers.ContainsKey(e.PeerId))
+        {
+            _ = ConnectToPeerAsync(e.PeerId);
+        }
+    }
+
+    private void OnNetworkDeviceDiscovered(object? sender, NetworkDeviceEventArgs e)
+    {
+        NetworkDeviceDiscovered?.Invoke(this, e);
     }
 
     private void OnPeerLost(object? sender, DiscoveredPeerEventArgs e)
@@ -309,7 +350,6 @@ public class PeerDiscoveredEventArgs : EventArgs
 {
     public required string PeerId { get; init; }
     public required IPEndPoint Endpoint { get; init; }
-    public bool SecretMatches { get; init; }
 }
 
 public class MessageReceivedEventArgs : EventArgs

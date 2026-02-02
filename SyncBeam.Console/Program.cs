@@ -8,11 +8,10 @@ namespace SyncBeam.Console;
 
 /// <summary>
 /// Phase 1 Test Console - Discovery, Handshake, and Encrypted Channel
+/// Auto-discovers and auto-connects to peers on LAN.
 /// </summary>
 class Program
 {
-    private static readonly string DefaultSecret = "SyncBeam-Test-Secret-2024";
-
     static async Task Main(string[] args)
     {
         // Enable debug output to console
@@ -25,16 +24,14 @@ class Program
         System.Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         System.Console.WriteLine();
 
-        var secret = args.Length > 0 ? args[0] : DefaultSecret;
-        System.Console.WriteLine($"[*] Project Secret: {secret[..Math.Min(10, secret.Length)]}...");
+        System.Console.WriteLine("[*] Auto-discovery enabled - will connect to all LAN peers");
 
-        using var manager = new PeerManager(secret);
+        using var manager = new PeerManager();
 
         // Wire up events
         manager.PeerDiscovered += (_, e) =>
         {
-            var secretStatus = e.SecretMatches ? "✓ SAME SECRET" : "✗ DIFFERENT SECRET";
-            System.Console.WriteLine($"[DISCOVERED] Peer {e.PeerId[..8]}... at {e.Endpoint} ({secretStatus})");
+            System.Console.WriteLine($"[DISCOVERED] Peer {e.PeerId[..8]}... at {e.Endpoint} (auto-connecting...)");
         };
 
         manager.PeerConnected += (_, e) =>

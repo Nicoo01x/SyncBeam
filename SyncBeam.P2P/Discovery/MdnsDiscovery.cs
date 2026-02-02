@@ -17,7 +17,6 @@ public sealed class MdnsDiscovery : IDisposable
     private readonly MulticastService _mdns;
     private readonly ServiceDiscovery _serviceDiscovery;
     private readonly PeerIdentity _localIdentity;
-    private readonly byte[] _secretHash;
     private readonly int _port;
     private readonly string _instanceName;
     private readonly ServiceProfile _serviceProfile;
@@ -28,15 +27,13 @@ public sealed class MdnsDiscovery : IDisposable
     public event EventHandler<DiscoveredPeerEventArgs>? PeerDiscovered;
     public event EventHandler<DiscoveredPeerEventArgs>? PeerLost;
 
-    public MdnsDiscovery(PeerIdentity localIdentity, string projectSecret, int port)
+    public MdnsDiscovery(PeerIdentity localIdentity, int port)
     {
         _localIdentity = localIdentity;
-        _secretHash = CryptoHelpers.ComputeSecretHash(projectSecret);
         _port = port;
 
-        // Instance name includes truncated secret hash for filtering
-        var secretPrefix = Convert.ToHexString(_secretHash[..4]).ToLowerInvariant();
-        _instanceName = $"syncbeam-{secretPrefix}-{_localIdentity.PeerId[..8]}";
+        // Simple instance name with peer ID prefix
+        _instanceName = $"syncbeam-{_localIdentity.PeerId[..8]}";
 
         _mdns = new MulticastService();
 
@@ -54,7 +51,6 @@ public sealed class MdnsDiscovery : IDisposable
         // Create service profile
         _serviceProfile = new ServiceProfile(_instanceName, ServiceType, (ushort)_port);
         _serviceProfile.AddProperty("peerId", _localIdentity.PeerId);
-        _serviceProfile.AddProperty("secretHash", Convert.ToHexString(_secretHash[..8]).ToLowerInvariant());
         _serviceProfile.AddProperty("version", "1");
 
         // Add all local addresses
@@ -137,11 +133,10 @@ public sealed class MdnsDiscovery : IDisposable
                 return;
             }
 
-            // Get service details
+            // Get service details from both Answers and AdditionalRecords
             var peerId = GetTxtProperty(e.Message, "peerId");
-            var secretHashHex = GetTxtProperty(e.Message, "secretHash");
 
-            System.Diagnostics.Debug.WriteLine($"[mDNS] PeerId: {peerId}, SecretHash: {secretHashHex}");
+            System.Diagnostics.Debug.WriteLine($"[mDNS] PeerId: {peerId}");
 
             if (string.IsNullOrEmpty(peerId))
             {
@@ -149,25 +144,25 @@ public sealed class MdnsDiscovery : IDisposable
                 return;
             }
 
-            // Check if secret matches (but still show the peer)
-            var expectedPrefix = Convert.ToHexString(_secretHash[..8]).ToLowerInvariant();
-            var secretMatches = !string.IsNullOrEmpty(secretHashHex) &&
-                string.Equals(secretHashHex, expectedPrefix, StringComparison.OrdinalIgnoreCase);
-
-            System.Diagnostics.Debug.WriteLine($"[mDNS] Expected hash: {expectedPrefix}, Matches: {secretMatches}");
-
-            // Get endpoint
+            // Get endpoint - check both Answers and AdditionalRecords for SRV
             var srvRecord = e.Message.Answers
+                .OfType<SRVRecord>()
+                .FirstOrDefault()
+                ?? e.Message.AdditionalRecords
                 .OfType<SRVRecord>()
                 .FirstOrDefault();
 
-            var aRecords = e.Message.AdditionalRecords
+            // Get A records from both sections
+            var aRecords = e.Message.Answers
                 .OfType<ARecord>()
+                .Concat(e.Message.AdditionalRecords.OfType<ARecord>())
                 .ToList();
 
             if (srvRecord == null || aRecords.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine($"[mDNS] No SRV or A records found, skipping");
+                System.Diagnostics.Debug.WriteLine($"[mDNS] No SRV or A records found, querying for more details...");
+                // Query specifically for this service instance to get full details
+                _mdns.SendQuery(e.ServiceInstanceName, type: DnsType.ANY);
                 return;
             }
 
@@ -178,8 +173,7 @@ public sealed class MdnsDiscovery : IDisposable
             {
                 PeerId = peerId,
                 Endpoint = endpoint,
-                InstanceName = e.ServiceInstanceName.Labels[0],
-                SecretMatches = secretMatches
+                InstanceName = e.ServiceInstanceName.Labels[0]
             });
 
             System.Diagnostics.Debug.WriteLine($"[mDNS] Peer discovered event raised for {peerId}");
@@ -200,11 +194,11 @@ public sealed class MdnsDiscovery : IDisposable
 
             // Extract peer ID from instance name if possible
             var parts = instanceName.Split('-');
-            if (parts.Length >= 3 && parts[0] == "syncbeam")
+            if (parts.Length >= 2 && parts[0] == "syncbeam")
             {
                 PeerLost?.Invoke(this, new DiscoveredPeerEventArgs
                 {
-                    PeerId = parts[2],
+                    PeerId = parts[1],
                     InstanceName = instanceName,
                     Endpoint = null!
                 });
@@ -270,5 +264,4 @@ public class DiscoveredPeerEventArgs : EventArgs
     public required string PeerId { get; init; }
     public required IPEndPoint Endpoint { get; init; }
     public required string InstanceName { get; init; }
-    public bool SecretMatches { get; init; }
 }
