@@ -38,7 +38,9 @@ public sealed class PeerManager : IDisposable
     public event EventHandler<NetworkDeviceEventArgs>? NetworkDeviceDiscovered;
     public event EventHandler? NetworkScanCompleted;
 
-    public PeerManager(int listenPort = 0)
+    private const int DefaultPort = 42420;
+
+    public PeerManager(int listenPort = DefaultPort)
     {
         _localIdentity = PeerIdentity.Generate();
 
