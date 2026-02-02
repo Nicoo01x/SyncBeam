@@ -39,6 +39,16 @@ public sealed class MdnsDiscovery : IDisposable
         _instanceName = $"syncbeam-{secretPrefix}-{_localIdentity.PeerId[..8]}";
 
         _mdns = new MulticastService();
+
+        // Ignore virtual network adapters that might interfere
+        _mdns.NetworkInterfaceDiscovered += (s, e) =>
+        {
+            foreach (var nic in e.NetworkInterfaces)
+            {
+                System.Diagnostics.Debug.WriteLine($"[mDNS] Using network interface: {nic.Name} ({nic.NetworkInterfaceType})");
+            }
+        };
+
         _serviceDiscovery = new ServiceDiscovery(_mdns);
 
         // Create service profile
@@ -59,6 +69,17 @@ public sealed class MdnsDiscovery : IDisposable
 
         _serviceDiscovery.ServiceInstanceDiscovered += OnServiceInstanceDiscovered;
         _serviceDiscovery.ServiceInstanceShutdown += OnServiceInstanceShutdown;
+
+        // Add debug handlers
+        _mdns.QueryReceived += (s, args) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Query received: {args.Message.Questions.FirstOrDefault()?.Name}");
+        };
+
+        _mdns.AnswerReceived += (s, args) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Answer received from {args.RemoteEndPoint}");
+        };
     }
 
     public void Start()

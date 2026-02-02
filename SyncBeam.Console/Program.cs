@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using MessagePack;
 using SyncBeam.P2P;
@@ -14,6 +15,10 @@ class Program
 
     static async Task Main(string[] args)
     {
+        // Enable debug output to console
+        Trace.Listeners.Add(new ConsoleTraceListener());
+        Debug.AutoFlush = true;
+
         System.Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
         System.Console.WriteLine("║              SyncBeam P2P Test Console - Phase 1              ║");
         System.Console.WriteLine("║         Discovery • Handshake • Encrypted Channel            ║");
@@ -28,7 +33,8 @@ class Program
         // Wire up events
         manager.PeerDiscovered += (_, e) =>
         {
-            System.Console.WriteLine($"[DISCOVERED] Peer {e.PeerId[..8]}... at {e.Endpoint}");
+            var secretStatus = e.SecretMatches ? "✓ SAME SECRET" : "✗ DIFFERENT SECRET";
+            System.Console.WriteLine($"[DISCOVERED] Peer {e.PeerId[..8]}... at {e.Endpoint} ({secretStatus})");
         };
 
         manager.PeerConnected += (_, e) =>
