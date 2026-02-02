@@ -171,7 +171,8 @@ public sealed class PeerManager : IDisposable
         PeerDiscovered?.Invoke(this, new PeerDiscoveredEventArgs
         {
             PeerId = e.PeerId,
-            Endpoint = e.Endpoint
+            Endpoint = e.Endpoint,
+            SecretMatches = e.SecretMatches
         });
     }
 
@@ -308,6 +309,7 @@ public class PeerDiscoveredEventArgs : EventArgs
 {
     public required string PeerId { get; init; }
     public required IPEndPoint Endpoint { get; init; }
+    public bool SecretMatches { get; init; }
 }
 
 public class MessageReceivedEventArgs : EventArgs

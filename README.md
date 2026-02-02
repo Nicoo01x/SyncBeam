@@ -1,8 +1,8 @@
 <div align="center">
 
-# ⚡ SyncBeam
+# SyncBeam
 
-### Transferencia P2P de archivos y portapapeles para Windows
+### P2P File and Clipboard Transfer for Windows
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
@@ -10,157 +10,156 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e.svg)](CONTRIBUTING.md)
 
 <p align="center">
-  <strong>🔒 Sin servidores • 🌐 100% Local • ⚡ Ultra rápido</strong>
+  <strong>No servers - 100% Local - Ultra fast</strong>
 </p>
-
-<img src="https://raw.githubusercontent.com/yourusername/SyncBeam/main/docs/screenshot.png" alt="SyncBeam Screenshot" width="800"/>
 
 </div>
 
 ---
 
-## ✨ Características
+## Features
 
-| Característica | Descripción |
-|----------------|-------------|
-| 🔍 **Auto-descubrimiento** | Encuentra automáticamente otros dispositivos SyncBeam en tu red via mDNS |
-| 🔐 **Cifrado E2E** | Noise Protocol XX + AES-256-GCM para máxima seguridad |
-| 📁 **Transferencia de archivos** | Soporte para archivos >10GB con reanudación automática |
-| 📋 **Sync de portapapeles** | Texto, imágenes, RTF y HTML sincronizados en tiempo real |
-| 🎯 **Drag & Drop** | Arrastra archivos al outbox para enviarlos automáticamente |
-| 🎨 **UI Moderna** | Interfaz glassmorphism oscura con WebView2 |
-| 🚫 **Sin cloud** | Cero servidores, cero tracking, 100% peer-to-peer |
+| Feature | Description |
+|---------|-------------|
+| **Auto-discovery** | Automatically finds other SyncBeam devices on your network via mDNS |
+| **E2E Encryption** | Noise Protocol XX + AES-256-GCM for maximum security |
+| **File Transfer** | Support for files >10GB with automatic resume |
+| **Clipboard Sync** | Text, images, RTF and HTML synced in real-time |
+| **Drag & Drop** | Drag files to the outbox to send them automatically |
+| **Modern UI** | Dark glassmorphism interface with WebView2 |
+| **No cloud** | Zero servers, zero tracking, 100% peer-to-peer |
 
 ---
 
-## 🚀 Inicio Rápido
+## Quick Start
 
-### Requisitos
+### Requirements
 
 - Windows 10/11
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- WebView2 Runtime (incluido en Windows 10/11)
+- WebView2 Runtime (included in Windows 10/11)
 
-### Instalación
+### Installation
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/yourusername/SyncBeam.git
+# Clone the repository
+git clone https://github.com/Nicoo01x/SyncBeam.git
 cd SyncBeam
 
-# Restaurar dependencias
+# Restore dependencies
 dotnet restore
 
-# Compilar
+# Build
 dotnet build
 
-# Ejecutar
+# Run
 dotnet run --project SyncBeam.App
 ```
 
-### Uso Rápido
+### Quick Usage
 
-1. **Ejecuta SyncBeam** en dos o más PCs de la misma red
-2. **Comparte el mismo secreto** (se genera automáticamente en `~/SyncBeam/.secret`)
-3. **Conecta** haciendo clic en el peer descubierto
-4. **Transfiere** arrastrando archivos o copiando al portapapeles
+1. **Run SyncBeam** on two or more PCs on the same network
+2. **Devices appear automatically** in the Peers list
+3. **Share the same secret** (Settings > copy/paste the secret)
+4. **Connect** by clicking on the discovered peer
+5. **Transfer** by dragging files or copying to clipboard
 
 ---
 
-## 🏗️ Arquitectura
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         SyncBeam.App                            │
-│                    (WPF + WebView2 UI)                          │
-├─────────────────────────────────────────────────────────────────┤
-│  SyncBeam.Streams  │  SyncBeam.Clipboard  │    SyncBeam.UI     │
-│  (File Transfer)   │  (Clipboard Sync)    │   (HTML/CSS/JS)    │
-├─────────────────────────────────────────────────────────────────┤
-│                         SyncBeam.P2P                            │
-│  ┌──────────────┬──────────────┬──────────────┬──────────────┐ │
-│  │   Discovery  │  Handshake   │  Transport   │ NatTraversal │ │
-│  │    (mDNS)    │ (Noise XX)   │ (TCP+AES)    │   (STUN)     │ │
-│  └──────────────┴──────────────┴──────────────┴──────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
++------------------------------------------------------------------+
+|                         SyncBeam.App                              |
+|                    (WPF + WebView2 UI)                            |
++------------------------------------------------------------------+
+|  SyncBeam.Streams  |  SyncBeam.Clipboard  |    SyncBeam.UI       |
+|  (File Transfer)   |  (Clipboard Sync)    |   (HTML/CSS/JS)      |
++------------------------------------------------------------------+
+|                         SyncBeam.P2P                              |
+|  +-------------+-------------+-------------+------------------+   |
+|  |  Discovery  |  Handshake  |  Transport  |  NatTraversal    |   |
+|  |   (mDNS)    | (Noise XX)  |  (TCP+AES)  |    (STUN)        |   |
+|  +-------------+-------------+-------------+------------------+   |
++------------------------------------------------------------------+
 ```
 
-### Estructura del Proyecto
+### Project Structure
 
 ```
 SyncBeam/
-├── 📁 SyncBeam.App/           # Aplicación WPF principal
-│   ├── MainWindow.xaml        # Ventana con WebView2
-│   └── WebViewHost.cs         # Bridge JS ↔ C#
+├── SyncBeam.App/              # Main WPF application
+│   ├── MainWindow.xaml        # Window with WebView2
+│   └── WebViewHost.cs         # JS <-> C# bridge
 │
-├── 📁 SyncBeam.P2P/           # Librería de networking P2P
-│   ├── Core/                  # Criptografía (Ed25519, AES-GCM)
-│   ├── Discovery/             # mDNS para descubrimiento
+├── SyncBeam.P2P/              # P2P networking library
+│   ├── Core/                  # Cryptography (Ed25519, AES-GCM)
+│   ├── Discovery/             # mDNS for discovery
 │   ├── Handshake/             # Noise Protocol XX
-│   ├── Transport/             # Transporte TCP seguro
+│   ├── Transport/             # Secure TCP transport
 │   ├── NatTraversal/          # STUN + hole punching
-│   └── PeerManager.cs         # Gestión de peers
+│   └── PeerManager.cs         # Peer management
 │
-├── 📁 SyncBeam.Streams/       # Motor de transferencia
+├── SyncBeam.Streams/          # Transfer engine
 │   ├── FileTransferEngine.cs  # Chunked streaming + resume
-│   └── OutboxWatcher.cs       # Auto-beam desde outbox
+│   └── OutboxWatcher.cs       # Auto-beam from outbox
 │
-├── 📁 SyncBeam.Clipboard/     # Sincronización de portapapeles
+├── SyncBeam.Clipboard/        # Clipboard synchronization
 │   └── ClipboardWatcher.cs    # Monitor + sync
 │
-├── 📁 SyncBeam.UI/            # Interfaz web
+├── SyncBeam.UI/               # Web interface
 │   ├── index.html
 │   ├── styles.css             # Glassmorphism UI
 │   └── app.js
 │
-└── 📁 SyncBeam.Console/       # App de prueba CLI
+└── SyncBeam.Console/          # CLI test app
     └── Program.cs
 ```
 
 ---
 
-## 🔒 Seguridad
+## Security
 
-SyncBeam implementa seguridad de grado militar:
+SyncBeam implements military-grade security:
 
-| Capa | Tecnología | Propósito |
-|------|------------|-----------|
-| **Identidad** | Ed25519 | Claves de firma únicas por dispositivo |
-| **Handshake** | Noise Protocol XX | Autenticación mutua con ocultación de identidad |
-| **Transporte** | AES-256-GCM | Cifrado autenticado de todos los datos |
-| **Integridad** | SHA-256 | Verificación de cada chunk transferido |
-| **Autorización** | Project Secret | Solo peers con el mismo secreto pueden conectar |
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Identity** | Ed25519 | Unique signing keys per device |
+| **Handshake** | Noise Protocol XX | Mutual authentication with identity hiding |
+| **Transport** | AES-256-GCM | Authenticated encryption of all data |
+| **Integrity** | SHA-256 | Verification of each transferred chunk |
+| **Authorization** | Project Secret | Only peers with the same secret can connect |
 
-### Flujo de Handshake
+### Handshake Flow
 
 ```
-    Iniciador                                    Respondedor
-        │                                             │
-        │──── e ─────────────────────────────────────►│  1. Envía clave efímera
-        │                                             │
-        │◄─── e, ee, s, es ──────────────────────────│  2. Intercambio DH + clave estática cifrada
-        │                                             │
-        │──── s, se ─────────────────────────────────►│  3. Clave estática + verificación
-        │                                             │
-        │◄─── ✓ ──────────────────────────────────────│  4. Canal seguro establecido
-        │                                             │
+    Initiator                                    Responder
+        |                                             |
+        |---- e ---------------------------------------->|  1. Send ephemeral key
+        |                                             |
+        |<--- e, ee, s, es ----------------------------|  2. DH exchange + encrypted static key
+        |                                             |
+        |---- s, se ---------------------------------->|  3. Static key + verification
+        |                                             |
+        |<--- OK -------------------------------------|  4. Secure channel established
+        |                                             |
 ```
 
 ---
 
-## 📁 Directorios
+## Directories
 
-| Directorio | Propósito |
-|------------|-----------|
-| `~/SyncBeam/inbox` | Archivos recibidos se guardan aquí |
-| `~/SyncBeam/outbox` | Arrastra archivos aquí para enviarlos automáticamente |
-| `~/SyncBeam/.secret` | Tu secreto de proyecto (compártelo con peers autorizados) |
+| Directory | Purpose |
+|-----------|---------|
+| `~/SyncBeam/inbox` | Received files are saved here |
+| `~/SyncBeam/outbox` | Drag files here to send them automatically |
+| `~/SyncBeam/.secret` | Your project secret (share with authorized peers) |
 
 ---
 
-## 🛠️ Desarrollo
+## Development
 
-### Compilar desde código
+### Build from source
 
 ```bash
 # Debug
@@ -169,65 +168,54 @@ dotnet build
 # Release
 dotnet build -c Release
 
-# Publicar ejecutable independiente
+# Publish standalone executable
 dotnet publish -c Release -r win-x64 --self-contained
 ```
 
-### Ejecutar tests
+### Run tests
 
 ```bash
-# Consola de prueba P2P
-dotnet run --project SyncBeam.Console "mi-secreto"
+# P2P test console
+dotnet run --project SyncBeam.Console "my-secret"
 
-# En otra terminal con el mismo secreto
-dotnet run --project SyncBeam.Console "mi-secreto"
+# In another terminal with the same secret
+dotnet run --project SyncBeam.Console "my-secret"
 ```
 
-### Comandos de la consola de prueba
+### Test console commands
 
-| Comando | Descripción |
+| Command | Description |
 |---------|-------------|
-| `list` | Lista peers descubiertos |
-| `connect` | Conectar a un peer |
-| `peers` | Mostrar peers conectados |
-| `send` | Enviar mensaje de prueba |
-| `ping` | Ping a todos los peers |
-| `refresh` | Refrescar descubrimiento |
-| `quit` | Salir |
+| `list` | List discovered peers |
+| `connect` | Connect to a peer |
+| `peers` | Show connected peers |
+| `send` | Send test message |
+| `ping` | Ping all peers |
+| `refresh` | Refresh discovery |
+| `quit` | Exit |
 
 ---
 
-## 🤝 Contribuir
+## Contributing
 
-¡Las contribuciones son bienvenidas! Por favor lee [CONTRIBUTING.md](CONTRIBUTING.md) para detalles.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-1. Fork el repositorio
-2. Crea tu feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add: AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
----
-
-## 📜 Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT - ver [LICENSE](LICENSE) para detalles.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add: AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
-## 🙏 Agradecimientos
+## License
 
-- [Noise Protocol](https://noiseprotocol.org/) - Framework de cifrado
-- [Makaretu.Dns](https://github.com/richardschneider/net-mdns) - mDNS para .NET
-- [NSec](https://nsec.rocks/) - Criptografía moderna para .NET
-- [MessagePack](https://msgpack.org/) - Serialización binaria eficiente
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
 
-**Hecho con ❤️ para la comunidad**
-
-[⬆ Volver arriba](#-syncbeam)
+[Back to top](#syncbeam)
 
 </div>

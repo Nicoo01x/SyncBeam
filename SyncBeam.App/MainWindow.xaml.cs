@@ -82,7 +82,8 @@ public partial class MainWindow : Window
             SendToUI("peerDiscovered", new
             {
                 peerId = e.PeerId,
-                endpoint = e.Endpoint.ToString()
+                endpoint = e.Endpoint.ToString(),
+                secretMatches = e.SecretMatches
             });
         };
 
@@ -368,7 +369,8 @@ public partial class MainWindow : Window
             SendToUI("peerDiscovered", new
             {
                 peerId = e.PeerId,
-                endpoint = e.Endpoint.ToString()
+                endpoint = e.Endpoint.ToString(),
+                secretMatches = e.SecretMatches
             });
         };
 

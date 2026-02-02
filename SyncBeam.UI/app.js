@@ -16,6 +16,8 @@ const i18n = {
         'peers.sendFile': 'Send File',
         'peers.discovered': 'Discovered',
         'peers.connected': 'Connected',
+        'peers.differentSecret': 'Different secret',
+        'peers.needSameSecret': 'Use same secret to connect',
         'transfers.title': 'File Transfers',
         'transfers.dropTitle': 'Drop files here to send',
         'transfers.dropHint': 'or click to browse',
@@ -63,6 +65,8 @@ const i18n = {
         'peers.sendFile': 'Enviar Archivo',
         'peers.discovered': 'Descubierto',
         'peers.connected': 'Conectado',
+        'peers.differentSecret': 'Secreto diferente',
+        'peers.needSameSecret': 'Usa el mismo secreto para conectar',
         'transfers.title': 'Transferencias',
         'transfers.dropTitle': 'Arrastra archivos aquí para enviar',
         'transfers.dropHint': 'o haz clic para buscar',
@@ -491,7 +495,8 @@ class SyncBeamApp {
                 this.state.discoveredPeers.set(data.peerId, {
                     peerId: data.peerId,
                     endpoint: data.endpoint,
-                    connected: false
+                    connected: false,
+                    secretMatches: data.secretMatches
                 });
                 this.renderPeers();
                 break;
@@ -655,16 +660,18 @@ class SyncBeamApp {
             const isConnected = this.state.connectedPeers.has(peer.peerId);
             const shortId = peer.peerId.substring(0, 8);
             const initials = shortId.substring(0, 2).toUpperCase();
+            const secretMatches = peer.secretMatches !== false;
 
             return `
-                <div class="peer-card ${isConnected ? 'connected' : ''}" data-peer-id="${peer.peerId}">
+                <div class="peer-card ${isConnected ? 'connected' : ''} ${!secretMatches ? 'secret-mismatch' : ''}" data-peer-id="${peer.peerId}">
                     <div class="peer-card-header">
-                        <div class="peer-avatar">${initials}</div>
+                        <div class="peer-avatar ${!secretMatches ? 'mismatch' : ''}">${initials}</div>
                         <div class="peer-info">
                             <div class="peer-name">Peer ${shortId}</div>
                             <div class="peer-status">
-                                <span class="peer-status-dot ${isConnected ? 'online' : ''}"></span>
-                                ${isConnected ? this.t('peers.connected') : this.t('peers.discovered')}
+                                <span class="peer-status-dot ${isConnected ? 'online' : ''} ${!secretMatches ? 'mismatch' : ''}"></span>
+                                ${isConnected ? this.t('peers.connected') :
+                                  (secretMatches ? this.t('peers.discovered') : this.t('peers.differentSecret'))}
                             </div>
                         </div>
                     </div>
@@ -674,11 +681,13 @@ class SyncBeamApp {
                             <button class="btn btn-secondary" onclick="app.sendFileToPeer('${peer.peerId}')">
                                 ${this.t('peers.sendFile')}
                             </button>
-                        ` : `
+                        ` : (secretMatches ? `
                             <button class="btn btn-primary" onclick="app.connectToPeer('${peer.peerId}')">
                                 ${this.t('peers.connect')}
                             </button>
-                        `}
+                        ` : `
+                            <span class="peer-hint">${this.t('peers.needSameSecret')}</span>
+                        `)}
                     </div>
                 </div>
             `;

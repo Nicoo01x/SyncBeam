@@ -106,13 +106,13 @@ public sealed class MdnsDiscovery : IDisposable
             var peerId = GetTxtProperty(e.Message, "peerId");
             var secretHashHex = GetTxtProperty(e.Message, "secretHash");
 
-            if (string.IsNullOrEmpty(peerId) || string.IsNullOrEmpty(secretHashHex))
+            if (string.IsNullOrEmpty(peerId))
                 return;
 
-            // Verify secret hash prefix matches
+            // Check if secret matches (but still show the peer)
             var expectedPrefix = Convert.ToHexString(_secretHash[..8]).ToLowerInvariant();
-            if (!string.Equals(secretHashHex, expectedPrefix, StringComparison.OrdinalIgnoreCase))
-                return;
+            var secretMatches = !string.IsNullOrEmpty(secretHashHex) &&
+                string.Equals(secretHashHex, expectedPrefix, StringComparison.OrdinalIgnoreCase);
 
             // Get endpoint
             var srvRecord = e.Message.Answers
@@ -132,7 +132,8 @@ public sealed class MdnsDiscovery : IDisposable
             {
                 PeerId = peerId,
                 Endpoint = endpoint,
-                InstanceName = e.ServiceInstanceName.Labels[0]
+                InstanceName = e.ServiceInstanceName.Labels[0],
+                SecretMatches = secretMatches
             });
         }
         catch
@@ -221,4 +222,5 @@ public class DiscoveredPeerEventArgs : EventArgs
     public required string PeerId { get; init; }
     public required IPEndPoint Endpoint { get; init; }
     public required string InstanceName { get; init; }
+    public bool SecretMatches { get; init; }
 }
