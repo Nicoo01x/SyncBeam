@@ -268,12 +268,31 @@ public partial class MainWindow : Window
                 break;
 
             case "setSecret":
-                var newSecret = data.GetProperty("secret").GetString();
-                if (!string.IsNullOrEmpty(newSecret) && newSecret != _projectSecret)
+                try
                 {
-                    SaveSecret(newSecret);
-                    // Restart with new secret
-                    RestartWithNewSecret(newSecret);
+                    var newSecret = data.GetProperty("secret").GetString();
+                    System.Diagnostics.Debug.WriteLine($"setSecret received: {newSecret}");
+                    if (!string.IsNullOrEmpty(newSecret))
+                    {
+                        SaveSecret(newSecret);
+                        if (newSecret != _projectSecret)
+                        {
+                            RestartWithNewSecret(newSecret);
+                        }
+                        else
+                        {
+                            SendToUI("secretChanged", new
+                            {
+                                localPeerId = _peerManager?.LocalPeerId,
+                                listenPort = _peerManager?.ListenPort,
+                                projectSecret = newSecret
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"setSecret error: {ex.Message}");
                 }
                 break;
 

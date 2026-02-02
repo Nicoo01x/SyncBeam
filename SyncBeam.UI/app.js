@@ -631,7 +631,12 @@ class SyncBeamApp {
     saveSecret() {
         const secretInput = document.getElementById('projectSecret');
         if (secretInput && secretInput.value.trim()) {
-            this.sendToBackend('setSecret', { secret: secretInput.value.trim() });
+            const newSecret = secretInput.value.trim();
+            console.log('Saving secret:', newSecret);
+            this.sendToBackend('setSecret', { secret: newSecret });
+            this.showNotification(this.t('settings.secretSaved'));
+        } else {
+            console.log('No secret to save');
         }
     }
 

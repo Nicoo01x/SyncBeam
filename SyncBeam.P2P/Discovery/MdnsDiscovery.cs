@@ -65,11 +65,17 @@ public sealed class MdnsDiscovery : IDisposable
     {
         if (_isRunning) return;
 
+        System.Diagnostics.Debug.WriteLine($"[mDNS] Starting discovery...");
+        System.Diagnostics.Debug.WriteLine($"[mDNS] Instance name: {_instanceName}");
+        System.Diagnostics.Debug.WriteLine($"[mDNS] Port: {_port}");
+        System.Diagnostics.Debug.WriteLine($"[mDNS] Local addresses: {string.Join(", ", GetLocalAddresses())}");
+
         _mdns.Start();
         _serviceDiscovery.Advertise(_serviceProfile);
         _serviceDiscovery.QueryServiceInstances(ServiceType);
 
         _isRunning = true;
+        System.Diagnostics.Debug.WriteLine($"[mDNS] Discovery started successfully");
     }
 
     public void Stop()
@@ -94,25 +100,40 @@ public sealed class MdnsDiscovery : IDisposable
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Service discovered: {e.ServiceInstanceName}");
+
             // Skip our own instance
             if (e.ServiceInstanceName.Labels[0] == _instanceName)
+            {
+                System.Diagnostics.Debug.WriteLine($"[mDNS] Skipping own instance");
                 return;
+            }
 
             // Check if this is a SyncBeam service
             if (!e.ServiceInstanceName.ToString().Contains(ServiceType))
+            {
+                System.Diagnostics.Debug.WriteLine($"[mDNS] Not a SyncBeam service, skipping");
                 return;
+            }
 
             // Get service details
             var peerId = GetTxtProperty(e.Message, "peerId");
             var secretHashHex = GetTxtProperty(e.Message, "secretHash");
 
+            System.Diagnostics.Debug.WriteLine($"[mDNS] PeerId: {peerId}, SecretHash: {secretHashHex}");
+
             if (string.IsNullOrEmpty(peerId))
+            {
+                System.Diagnostics.Debug.WriteLine($"[mDNS] No peerId found, skipping");
                 return;
+            }
 
             // Check if secret matches (but still show the peer)
             var expectedPrefix = Convert.ToHexString(_secretHash[..8]).ToLowerInvariant();
             var secretMatches = !string.IsNullOrEmpty(secretHashHex) &&
                 string.Equals(secretHashHex, expectedPrefix, StringComparison.OrdinalIgnoreCase);
+
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Expected hash: {expectedPrefix}, Matches: {secretMatches}");
 
             // Get endpoint
             var srvRecord = e.Message.Answers
@@ -124,9 +145,13 @@ public sealed class MdnsDiscovery : IDisposable
                 .ToList();
 
             if (srvRecord == null || aRecords.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[mDNS] No SRV or A records found, skipping");
                 return;
+            }
 
             var endpoint = new IPEndPoint(aRecords[0].Address, srvRecord.Port);
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Peer endpoint: {endpoint}");
 
             PeerDiscovered?.Invoke(this, new DiscoveredPeerEventArgs
             {
@@ -135,10 +160,12 @@ public sealed class MdnsDiscovery : IDisposable
                 InstanceName = e.ServiceInstanceName.Labels[0],
                 SecretMatches = secretMatches
             });
+
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Peer discovered event raised for {peerId}");
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore malformed announcements
+            System.Diagnostics.Debug.WriteLine($"[mDNS] Error processing discovery: {ex.Message}");
         }
     }
 
