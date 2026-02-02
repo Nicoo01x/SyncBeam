@@ -1,0 +1,12 @@
+# SyncBeam Code Owners
+# Este archivo define quién debe aprobar los PRs
+
+# El owner por defecto para todo el repositorio
+* @Nicoo01x
+
+# Áreas específicas (opcional)
+/SyncBeam.P2P/       @Nicoo01x
+/SyncBeam.App/       @Nicoo01x
+/SyncBeam.Streams/   @Nicoo01x
+/SyncBeam.Clipboard/ @Nicoo01x
+/SyncBeam.UI/        @Nicoo01x
