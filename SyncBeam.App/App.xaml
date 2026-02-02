@@ -1,0 +1,14 @@
+<Application x:Class="SyncBeam.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <SolidColorBrush x:Key="DarkBackground" Color="#0D1117"/>
+            <SolidColorBrush x:Key="DarkSurface" Color="#161B22"/>
+            <SolidColorBrush x:Key="AccentColor" Color="#58A6FF"/>
+            <SolidColorBrush x:Key="TextPrimary" Color="#E6EDF3"/>
+            <SolidColorBrush x:Key="TextSecondary" Color="#8B949E"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

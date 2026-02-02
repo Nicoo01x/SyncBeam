@@ -1,0 +1,63 @@
+<Window x:Class="SyncBeam.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="SyncBeam"
+        Height="700"
+        Width="1000"
+        MinHeight="500"
+        MinWidth="700"
+        Background="#0D1117"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="CanResizeWithGrip">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome
+            CaptionHeight="40"
+            ResizeBorderThickness="5"
+            GlassFrameThickness="0"
+            CornerRadius="12"/>
+    </WindowChrome.WindowChrome>
+
+    <Border CornerRadius="12" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Custom Title Bar -->
+            <Grid Grid.Row="0" Background="#161B22">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="⚡" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="SyncBeam" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Window Controls -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button x:Name="MinimizeButton" Content="─" Width="46" Height="40"
+                            Background="Transparent" Foreground="#8B949E" BorderThickness="0"
+                            FontSize="10" Click="MinimizeButton_Click"/>
+                    <Button x:Name="MaximizeButton" Content="□" Width="46" Height="40"
+                            Background="Transparent" Foreground="#8B949E" BorderThickness="0"
+                            FontSize="12" Click="MaximizeButton_Click"/>
+                    <Button x:Name="CloseButton" Content="✕" Width="46" Height="40"
+                            Background="Transparent" Foreground="#8B949E" BorderThickness="0"
+                            FontSize="10" Click="CloseButton_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- WebView2 Content -->
+            <wv2:WebView2 x:Name="WebView" Grid.Row="1"
+                          DefaultBackgroundColor="#0D1117"/>
+        </Grid>
+    </Border>
+</Window>

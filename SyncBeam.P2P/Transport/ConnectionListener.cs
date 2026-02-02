@@ -1,0 +1,194 @@
+using System.Net;
+using System.Net.Sockets;
+using SyncBeam.P2P.Core;
+
+namespace SyncBeam.P2P.Transport;
+
+/// <summary>
+/// TCP listener for incoming peer connections.
+/// </summary>
+public sealed class ConnectionListener : IDisposable
+{
+    private readonly TcpListener _listener;
+    private readonly PeerIdentity _localIdentity;
+    private readonly string _projectSecret;
+    private CancellationTokenSource? _cts;
+    private Task? _acceptTask;
+    private bool _disposed;
+
+    public int Port { get; }
+    public bool IsListening { get; private set; }
+
+    public event EventHandler<PeerConnectedEventArgs>? PeerConnected;
+    public event EventHandler<PeerConnectionFailedEventArgs>? ConnectionFailed;
+
+    public ConnectionListener(PeerIdentity localIdentity, string projectSecret, int port = 0)
+    {
+        _localIdentity = localIdentity;
+        _projectSecret = projectSecret;
+
+        _listener = new TcpListener(IPAddress.Any, port);
+        _listener.Start();
+        Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+        _listener.Stop();
+    }
+
+    public void Start()
+    {
+        if (IsListening) return;
+
+        _cts = new CancellationTokenSource();
+        _listener.Start();
+        IsListening = true;
+
+        _acceptTask = AcceptLoopAsync(_cts.Token);
+    }
+
+    public void Stop()
+    {
+        if (!IsListening) return;
+
+        _cts?.Cancel();
+        _listener.Stop();
+        IsListening = false;
+
+        try
+        {
+            _acceptTask?.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch
+        {
+            // Ignore
+        }
+    }
+
+    private async Task AcceptLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var client = await _listener.AcceptTcpClientAsync(ct);
+                _ = HandleIncomingConnectionAsync(client, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (SocketException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                ConnectionFailed?.Invoke(this, new PeerConnectionFailedEventArgs
+                {
+                    Error = ex,
+                    Endpoint = null
+                });
+            }
+        }
+    }
+
+    private async Task HandleIncomingConnectionAsync(TcpClient client, CancellationToken ct)
+    {
+        var endpoint = (IPEndPoint?)client.Client.RemoteEndPoint;
+        SecureTransport? transport = null;
+
+        try
+        {
+            client.NoDelay = true;
+            client.ReceiveTimeout = 30000;
+            client.SendTimeout = 30000;
+
+            transport = new SecureTransport(client, _localIdentity, _projectSecret);
+
+            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            handshakeCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+            await transport.HandshakeAsResponderAsync(handshakeCts.Token);
+
+            PeerConnected?.Invoke(this, new PeerConnectedEventArgs
+            {
+                Transport = transport,
+                RemotePeer = transport.RemotePeer!,
+                Endpoint = endpoint!,
+                IsIncoming = true
+            });
+        }
+        catch (Exception ex)
+        {
+            transport?.Dispose();
+            ConnectionFailed?.Invoke(this, new PeerConnectionFailedEventArgs
+            {
+                Error = ex,
+                Endpoint = endpoint
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            Stop();
+            _cts?.Dispose();
+            _disposed = true;
+        }
+    }
+}
+
+/// <summary>
+/// Outbound connection factory.
+/// </summary>
+public static class ConnectionFactory
+{
+    public static async Task<SecureTransport> ConnectAsync(
+        IPEndPoint endpoint,
+        PeerIdentity localIdentity,
+        string projectSecret,
+        CancellationToken ct = default)
+    {
+        var client = new TcpClient();
+        SecureTransport? transport = null;
+
+        try
+        {
+            client.NoDelay = true;
+
+            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            connectCts.CancelAfter(TimeSpan.FromSeconds(10));
+
+            await client.ConnectAsync(endpoint.Address, endpoint.Port, connectCts.Token);
+
+            transport = new SecureTransport(client, localIdentity, projectSecret);
+
+            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            handshakeCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+            await transport.HandshakeAsInitiatorAsync(handshakeCts.Token);
+
+            return transport;
+        }
+        catch
+        {
+            transport?.Dispose();
+            client.Dispose();
+            throw;
+        }
+    }
+}
+
+public class PeerConnectedEventArgs : EventArgs
+{
+    public required SecureTransport Transport { get; init; }
+    public required RemotePeerIdentity RemotePeer { get; init; }
+    public required IPEndPoint Endpoint { get; init; }
+    public required bool IsIncoming { get; init; }
+}
+
+public class PeerConnectionFailedEventArgs : EventArgs
+{
+    public required Exception Error { get; init; }
+    public IPEndPoint? Endpoint { get; init; }
+}
