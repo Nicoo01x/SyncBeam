@@ -1,104 +1,104 @@
-# Contribuir a SyncBeam
+# Contributing to SyncBeam
 
-¡Gracias por tu interés en contribuir a SyncBeam! 🎉
+Thank you for your interest in contributing to SyncBeam!
 
-## 📋 Tabla de Contenidos
+## Table of Contents
 
-- [Código de Conducta](#código-de-conducta)
-- [Cómo Contribuir](#cómo-contribuir)
-- [Reportar Bugs](#reportar-bugs)
-- [Sugerir Features](#sugerir-features)
+- [Code of Conduct](#code-of-conduct)
+- [How to Contribute](#how-to-contribute)
+- [Reporting Bugs](#reporting-bugs)
+- [Suggesting Features](#suggesting-features)
 - [Pull Requests](#pull-requests)
-- [Estilo de Código](#estilo-de-código)
+- [Code Style](#code-style)
 - [Commits](#commits)
 
 ---
 
-## 📜 Código de Conducta
+## Code of Conduct
 
-Este proyecto sigue un código de conducta inclusivo y respetuoso. Al participar, se espera que:
+This project follows an inclusive and respectful code of conduct. When participating, you are expected to:
 
-- Uses lenguaje inclusivo y respetuoso
-- Respetes diferentes puntos de vista y experiencias
-- Aceptes críticas constructivas con gracia
-- Te enfoques en lo mejor para la comunidad
+- Use inclusive and respectful language
+- Respect different viewpoints and experiences
+- Accept constructive criticism gracefully
+- Focus on what's best for the community
 
 ---
 
-## 🤝 Cómo Contribuir
+## How to Contribute
 
-### 1. Fork y Clone
+### 1. Fork and Clone
 
 ```bash
-# Fork el repo en GitHub, luego:
-git clone https://github.com/TU-USUARIO/SyncBeam.git
+# Fork the repo on GitHub, then:
+git clone https://github.com/YOUR-USERNAME/SyncBeam.git
 cd SyncBeam
-git remote add upstream https://github.com/ORIGINAL/SyncBeam.git
+git remote add upstream https://github.com/Nicoo01x/SyncBeam.git
 ```
 
-### 2. Crear Branch
+### 2. Create a Branch
 
 ```bash
-git checkout -b feature/mi-nueva-feature
-# o
-git checkout -b fix/descripcion-del-bug
+git checkout -b feature/my-new-feature
+# or
+git checkout -b fix/bug-description
 ```
 
-### 3. Hacer Cambios
+### 3. Make Changes
 
-- Escribe código limpio y documentado
-- Añade tests si es aplicable
-- Asegúrate de que compila sin errores ni warnings
+- Write clean and documented code
+- Add tests if applicable
+- Make sure it compiles without errors or warnings
 
-### 4. Commit y Push
+### 4. Commit and Push
 
 ```bash
 git add .
-git commit -m "Add: descripción clara del cambio"
-git push origin feature/mi-nueva-feature
+git commit -m "Add: clear description of the change"
+git push origin feature/my-new-feature
 ```
 
-### 5. Crear Pull Request
+### 5. Create Pull Request
 
-Abre un PR en GitHub con una descripción clara de tus cambios.
+Open a PR on GitHub with a clear description of your changes.
 
 ---
 
-## 🐛 Reportar Bugs
+## Reporting Bugs
 
-Antes de reportar un bug:
+Before reporting a bug:
 
-1. **Busca** en los issues existentes
-2. **Verifica** que estés usando la última versión
-3. **Reproduce** el bug de forma consistente
+1. **Search** existing issues
+2. **Verify** you're using the latest version
+3. **Reproduce** the bug consistently
 
-Al crear el issue incluye:
+When creating the issue include:
 
-- **Título claro**: Descripción breve del problema
-- **Pasos para reproducir**: Paso a paso para replicar el bug
-- **Comportamiento esperado**: Qué debería pasar
-- **Comportamiento actual**: Qué pasa realmente
-- **Entorno**: Windows version, .NET version, etc.
-- **Logs/Screenshots**: Si aplica
+- **Clear title**: Brief description of the problem
+- **Steps to reproduce**: Step by step to replicate the bug
+- **Expected behavior**: What should happen
+- **Actual behavior**: What actually happens
+- **Environment**: Windows version, .NET version, etc.
+- **Logs/Screenshots**: If applicable
 
 ```markdown
 ## Bug Report
 
-**Descripción**
-Breve descripción del bug.
+**Description**
+Brief description of the bug.
 
-**Pasos para reproducir**
-1. Ir a '...'
-2. Hacer click en '...'
-3. Ver error
+**Steps to reproduce**
+1. Go to '...'
+2. Click on '...'
+3. See error
 
-**Comportamiento esperado**
-Descripción de lo que debería pasar.
+**Expected behavior**
+Description of what should happen.
 
 **Screenshots**
-Si aplica, añadir screenshots.
+If applicable, add screenshots.
 
-**Entorno**
+**Environment**
 - OS: Windows 11
 - .NET: 8.0
 - Version: 1.0.0
@@ -106,87 +106,87 @@ Si aplica, añadir screenshots.
 
 ---
 
-## 💡 Sugerir Features
+## Suggesting Features
 
-¡Las ideas son bienvenidas! Al sugerir una feature:
+Ideas are welcome! When suggesting a feature:
 
-1. **Verifica** que no exista ya un issue similar
-2. **Describe** el problema que resuelve
-3. **Proporciona** ejemplos de uso
+1. **Verify** a similar issue doesn't already exist
+2. **Describe** the problem it solves
+3. **Provide** usage examples
 
 ```markdown
 ## Feature Request
 
-**Problema**
-Descripción del problema que esta feature resolvería.
+**Problem**
+Description of the problem this feature would solve.
 
-**Solución propuesta**
-Descripción de la solución que te gustaría.
+**Proposed solution**
+Description of the solution you'd like.
 
-**Alternativas consideradas**
-Otras soluciones que consideraste.
+**Alternatives considered**
+Other solutions you considered.
 
-**Contexto adicional**
-Cualquier otro contexto o screenshots.
+**Additional context**
+Any other context or screenshots.
 ```
 
 ---
 
-## 🔀 Pull Requests
+## Pull Requests
 
-### Proceso de Review
+### Review Process
 
-1. **Auto-review**: Revisa tu propio código antes de submitir
-2. **CI/CD**: Asegúrate de que pasan todos los checks
-3. **Review**: Un maintainer revisará tu PR
-4. **Feedback**: Puede que se pidan cambios
-5. **Merge**: Una vez aprobado, se hará merge
+1. **Self-review**: Review your own code before submitting
+2. **CI/CD**: Make sure all checks pass
+3. **Review**: A maintainer will review your PR
+4. **Feedback**: Changes may be requested
+5. **Merge**: Once approved, it will be merged
 
-### Checklist del PR
+### PR Checklist
 
-- [ ] El código compila sin errores
-- [ ] No hay warnings nuevos
-- [ ] Se siguió el estilo de código del proyecto
-- [ ] Se añadieron tests si aplica
-- [ ] Se actualizó la documentación si aplica
-- [ ] El commit message sigue la convención
+- [ ] Code compiles without errors
+- [ ] No new warnings
+- [ ] Project code style was followed
+- [ ] Tests were added if applicable
+- [ ] Documentation was updated if applicable
+- [ ] Commit message follows convention
 
-### Template de PR
+### PR Template
 
 ```markdown
-## Descripción
+## Description
 
-Breve descripción de los cambios.
+Brief description of the changes.
 
-## Tipo de cambio
+## Type of change
 
 - [ ] Bug fix
-- [ ] Nueva feature
+- [ ] New feature
 - [ ] Breaking change
-- [ ] Documentación
+- [ ] Documentation
 
 ## Checklist
 
-- [ ] Mi código sigue el estilo del proyecto
-- [ ] He hecho self-review de mi código
-- [ ] He comentado código complejo
-- [ ] He actualizado la documentación
-- [ ] Mis cambios no generan warnings
-- [ ] He añadido tests
+- [ ] My code follows the project style
+- [ ] I have done self-review of my code
+- [ ] I have commented complex code
+- [ ] I have updated documentation
+- [ ] My changes don't generate warnings
+- [ ] I have added tests
 
-## Screenshots (si aplica)
+## Screenshots (if applicable)
 
-Añadir screenshots de UI changes.
+Add screenshots of UI changes.
 ```
 
 ---
 
-## 🎨 Estilo de Código
+## Code Style
 
 ### C#
 
 ```csharp
-// ✅ Bien
+// Good
 public async Task<Result> ProcessFileAsync(string filePath, CancellationToken ct)
 {
     ArgumentNullException.ThrowIfNull(filePath);
@@ -195,7 +195,7 @@ public async Task<Result> ProcessFileAsync(string filePath, CancellationToken ct
     return result;
 }
 
-// ❌ Mal
+// Bad
 public async Task<Result> processFile(string file_path, CancellationToken cancellationToken) {
     if (file_path == null) throw new ArgumentNullException();
     var result = await _service.ProcessAsync(file_path, cancellationToken);
@@ -203,26 +203,26 @@ public async Task<Result> processFile(string file_path, CancellationToken cancel
 }
 ```
 
-**Reglas generales:**
+**General rules:**
 
-- Usar `PascalCase` para tipos y métodos públicos
-- Usar `camelCase` para variables locales y parámetros
-- Usar `_camelCase` para campos privados
-- Preferir `var` cuando el tipo es obvio
-- Usar expresiones de cuerpo para métodos simples
-- Documentar métodos públicos con XML comments
+- Use `PascalCase` for types and public methods
+- Use `camelCase` for local variables and parameters
+- Use `_camelCase` for private fields
+- Prefer `var` when the type is obvious
+- Use expression bodies for simple methods
+- Document public methods with XML comments
 
 ### CSS
 
 ```css
-/* ✅ Bien - usar variables CSS */
+/* Good - use CSS variables */
 .button {
     background: var(--accent-primary);
     border-radius: var(--radius-md);
     transition: var(--transition-base);
 }
 
-/* ❌ Mal - valores hardcodeados */
+/* Bad - hardcoded values */
 .button {
     background: #6366f1;
     border-radius: 12px;
@@ -233,7 +233,7 @@ public async Task<Result> processFile(string file_path, CancellationToken cancel
 ### JavaScript
 
 ```javascript
-// ✅ Bien
+// Good
 const handlePeerConnection = async (peerId) => {
     try {
         await this.sendToBackend('connect', { peerId });
@@ -243,7 +243,7 @@ const handlePeerConnection = async (peerId) => {
     }
 };
 
-// ❌ Mal
+// Bad
 function handlePeerConnection(peerId) {
     this.sendToBackend('connect', { peerId: peerId }).then(function() {
         this.showNotification('Connected!');
@@ -253,42 +253,42 @@ function handlePeerConnection(peerId) {
 
 ---
 
-## 📝 Commits
+## Commits
 
-### Formato
+### Format
 
 ```
-<tipo>: <descripción>
+<type>: <description>
 
-[cuerpo opcional]
+[optional body]
 
-[footer opcional]
+[optional footer]
 ```
 
-### Tipos
+### Types
 
-| Tipo | Descripción |
+| Type | Description |
 |------|-------------|
-| `Add` | Nueva feature |
+| `Add` | New feature |
 | `Fix` | Bug fix |
-| `Update` | Actualización de feature existente |
-| `Remove` | Eliminación de código/feature |
-| `Refactor` | Refactorización sin cambio funcional |
-| `Docs` | Cambios en documentación |
-| `Style` | Cambios de formato (no afectan lógica) |
-| `Test` | Añadir o modificar tests |
-| `Chore` | Tareas de mantenimiento |
+| `Update` | Update to existing feature |
+| `Remove` | Code/feature removal |
+| `Refactor` | Refactoring without functional change |
+| `Docs` | Documentation changes |
+| `Style` | Format changes (don't affect logic) |
+| `Test` | Add or modify tests |
+| `Chore` | Maintenance tasks |
 
-### Ejemplos
+### Examples
 
 ```bash
-# ✅ Buenos commits
+# Good commits
 git commit -m "Add: file transfer resume functionality"
 git commit -m "Fix: mDNS discovery not finding peers on some networks"
 git commit -m "Update: improve handshake timeout handling"
 git commit -m "Docs: add API documentation for PeerManager"
 
-# ❌ Malos commits
+# Bad commits
 git commit -m "fix stuff"
 git commit -m "WIP"
 git commit -m "asdfasdf"
@@ -296,28 +296,28 @@ git commit -m "asdfasdf"
 
 ---
 
-## 🏷️ Labels
+## Labels
 
-| Label | Descripción |
+| Label | Description |
 |-------|-------------|
-| `bug` | Algo no funciona correctamente |
-| `enhancement` | Nueva feature o mejora |
-| `documentation` | Mejoras en documentación |
-| `good first issue` | Bueno para nuevos contribuidores |
-| `help wanted` | Se necesita ayuda extra |
-| `question` | Pregunta o discusión |
-| `wontfix` | No se trabajará en esto |
+| `bug` | Something isn't working correctly |
+| `enhancement` | New feature or improvement |
+| `documentation` | Documentation improvements |
+| `good first issue` | Good for new contributors |
+| `help wanted` | Extra help needed |
+| `question` | Question or discussion |
+| `wontfix` | Won't be worked on |
 
 ---
 
-## ❓ Preguntas
+## Questions
 
-¿Tienes preguntas? Abre un [Discussion](https://github.com/yourusername/SyncBeam/discussions) o un issue con el label `question`.
+Have questions? Open a [Discussion](https://github.com/Nicoo01x/SyncBeam/discussions) or an issue with the `question` label.
 
 ---
 
 <div align="center">
 
-**¡Gracias por contribuir!** 🙏
+**Thank you for contributing!**
 
 </div>
