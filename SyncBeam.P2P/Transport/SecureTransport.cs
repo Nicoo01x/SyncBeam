@@ -193,7 +193,7 @@ public sealed class SecureTransport : IDisposable
         {
             int read = await stream.ReadAsync(buffer.AsMemory(totalRead), ct);
             if (read == 0)
-                throw new EndOfStreamException("Connection closed");
+                throw new EndOfStreamException("Connection closed by remote peer. Make sure both devices are running SyncBeam.");
             totalRead += read;
         }
     }

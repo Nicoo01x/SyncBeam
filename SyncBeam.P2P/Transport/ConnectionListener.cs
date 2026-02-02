@@ -25,10 +25,32 @@ public sealed class ConnectionListener : IDisposable
     {
         _localIdentity = localIdentity;
 
-        _listener = new TcpListener(IPAddress.Any, port);
-        _listener.Start();
-        Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
-        _listener.Stop();
+        try
+        {
+            _listener = new TcpListener(IPAddress.Any, port);
+            _listener.Start();
+            Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+            _listener.Stop();
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Will listen on port {Port}");
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Failed to bind to port {port}: {ex.Message}");
+            // Try with a random port if the specified port is in use
+            if (port != 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Trying random port...");
+                _listener = new TcpListener(IPAddress.Any, 0);
+                _listener.Start();
+                Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+                _listener.Stop();
+                System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Using fallback port {Port}");
+            }
+            else
+            {
+                throw;
+            }
+        }
     }
 
     public void Start()
@@ -36,8 +58,18 @@ public sealed class ConnectionListener : IDisposable
         if (IsListening) return;
 
         _cts = new CancellationTokenSource();
-        _listener.Start();
-        IsListening = true;
+
+        try
+        {
+            _listener.Start();
+            IsListening = true;
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Started listening on port {Port}");
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Failed to start listener on port {Port}: {ex.Message}");
+            throw new InvalidOperationException($"Cannot start listener on port {Port}. Port may be in use by another application.", ex);
+        }
 
         _acceptTask = AcceptLoopAsync(_cts.Token);
     }
@@ -93,6 +125,8 @@ public sealed class ConnectionListener : IDisposable
         var endpoint = (IPEndPoint?)client.Client.RemoteEndPoint;
         SecureTransport? transport = null;
 
+        System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Incoming connection from {endpoint}");
+
         try
         {
             client.NoDelay = true;
@@ -104,7 +138,9 @@ public sealed class ConnectionListener : IDisposable
             using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             handshakeCts.CancelAfter(TimeSpan.FromSeconds(30));
 
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Starting handshake with {endpoint}");
             await transport.HandshakeAsResponderAsync(handshakeCts.Token);
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Handshake complete with {endpoint}");
 
             PeerConnected?.Invoke(this, new PeerConnectedEventArgs
             {
@@ -116,11 +152,13 @@ public sealed class ConnectionListener : IDisposable
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[ConnectionListener] Connection failed from {endpoint}: {ex.Message}");
             transport?.Dispose();
             ConnectionFailed?.Invoke(this, new PeerConnectionFailedEventArgs
             {
                 Error = ex,
-                Endpoint = endpoint
+                Endpoint = endpoint,
+                ErrorMessage = ex.Message
             });
         }
     }

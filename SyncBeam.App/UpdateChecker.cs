@@ -10,7 +10,7 @@ namespace SyncBeam.App;
 public sealed class UpdateChecker
 {
     private const string GitHubApiUrl = "https://api.github.com/repos/Nicoo01x/SyncBeam/releases/latest";
-    private const string CurrentVersion = "3.0.5";
+    private const string CurrentVersion = "3.0.6";
 
     private static readonly HttpClient _httpClient = new()
     {

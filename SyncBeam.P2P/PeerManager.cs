@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net;
 using MessagePack;
 using SyncBeam.P2P.Core;
@@ -154,10 +155,20 @@ public sealed class PeerManager : IDisposable
             errorMessage = "Connection was canceled.";
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection canceled to {peerId}");
         }
+        catch (EndOfStreamException ex)
+        {
+            errorMessage = "Remote device closed connection. Make sure SyncBeam is running on both devices.";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection closed by remote {peerId}: {ex.Message}");
+        }
         catch (System.IO.IOException ex)
         {
-            errorMessage = ex.Message;
+            errorMessage = ex.InnerException?.Message ?? ex.Message;
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection IO error to {peerId}: {ex.Message}");
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            errorMessage = $"Network error: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Socket error to {peerId}: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -240,10 +251,20 @@ public sealed class PeerManager : IDisposable
             errorMessage = "Connection was canceled.";
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection canceled to IP {ipAddress}");
         }
-        catch (System.IO.IOException ex)
+        catch (EndOfStreamException ex)
         {
-            errorMessage = ex.Message;
+            errorMessage = "Remote device closed connection. Make sure SyncBeam is running on both devices.";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection closed by remote IP {ipAddress}: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            errorMessage = ex.InnerException?.Message ?? ex.Message;
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection IO error to IP {ipAddress}: {ex.Message}");
+        }
+        catch (System.Net.Sockets.SocketException ex)
+        {
+            errorMessage = $"Network error: {ex.Message}";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Socket error to IP {ipAddress}: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -302,8 +323,14 @@ public sealed class PeerManager : IDisposable
     {
         var peerId = e.RemotePeer.PeerId;
 
+        System.Diagnostics.Debug.WriteLine($"[PeerManager] Incoming connection from {peerId}");
+
+        // Cancel any outgoing connection attempt to this peer
+        _connectingPeers.TryRemove(peerId, out _);
+
         if (_peers.ContainsKey(peerId))
         {
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Already connected to {peerId}, rejecting duplicate");
             e.Transport.Dispose();
             return;
         }
@@ -316,10 +343,12 @@ public sealed class PeerManager : IDisposable
             peer.StartReceiving(_cts.Token);
 
             _discoveredEndpoints.TryAdd(peerId, e.Endpoint);
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Successfully connected (incoming) to {peerId}");
             PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = peerId, Peer = peer });
         }
         else
         {
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Failed to add peer {peerId}, disposing");
             e.Transport.Dispose();
         }
     }
@@ -336,16 +365,27 @@ public sealed class PeerManager : IDisposable
         // Mark this device as having SyncBeam in the network scanner
         _networkScanner.MarkAsSyncBeamDevice(e.Endpoint.Address, e.PeerId);
 
+        System.Diagnostics.Debug.WriteLine($"[PeerManager] Discovered peer {e.PeerId} at {e.Endpoint}");
+
         PeerDiscovered?.Invoke(this, new PeerDiscoveredEventArgs
         {
             PeerId = e.PeerId,
             Endpoint = e.Endpoint
         });
 
-        // Auto-connect to discovered peers
+        // Auto-connect to discovered peers (with a small delay to avoid race conditions)
         if (!_peers.ContainsKey(e.PeerId) && !_connectingPeers.ContainsKey(e.PeerId))
         {
-            _ = ConnectToPeerAsync(e.PeerId);
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Auto-connecting to {e.PeerId}");
+            _ = Task.Run(async () =>
+            {
+                // Small random delay to reduce simultaneous connection attempts
+                await Task.Delay(Random.Shared.Next(100, 500));
+                if (!_peers.ContainsKey(e.PeerId) && !_connectingPeers.ContainsKey(e.PeerId))
+                {
+                    await ConnectToPeerAsync(e.PeerId);
+                }
+            });
         }
     }
 
