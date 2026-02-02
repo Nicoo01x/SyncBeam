@@ -1105,3 +1105,100 @@ body {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
 }
+
+/* Update Banner */
+.update-banner {
+    position: fixed;
+    top: 0;
+    left: 260px;
+    right: 0;
+    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-light) 100%);
+    padding: 12px 20px;
+    z-index: 1000;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+.update-banner.show {
+    transform: translateY(0);
+}
+
+.update-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.update-banner-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.update-banner-icon svg {
+    width: 20px;
+    height: 20px;
+    color: white;
+}
+
+.update-banner-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.update-banner-text strong {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.update-banner-text span {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+}
+
+.update-banner .update-btn {
+    background: white;
+    color: var(--color-secondary);
+    border: none;
+    padding: 8px 20px;
+    font-weight: 600;
+}
+
+.update-banner .update-btn:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: none;
+    box-shadow: none;
+}
+
+.update-close {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.update-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.update-close svg {
+    width: 18px;
+    height: 18px;
+    color: white;
+}
