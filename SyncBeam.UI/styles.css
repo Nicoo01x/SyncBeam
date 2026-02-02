@@ -775,6 +775,27 @@ body {
     font-size: 13px;
 }
 
+.secret-input-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.secret-input-group .input {
+    flex: 1;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+}
+
+.secret-input-group .btn {
+    flex-shrink: 0;
+}
+
+.btn-sm {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
 .setting-hint {
     font-size: 13px;
     color: var(--text-muted);
@@ -961,4 +982,26 @@ body {
     .view {
         padding: 20px;
     }
+}
+
+/* Notifications */
+.notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--color-secondary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
 }

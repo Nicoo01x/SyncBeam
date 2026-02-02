@@ -42,7 +42,12 @@ const i18n = {
         'settings.inboxDir': 'Inbox Directory',
         'settings.outboxDir': 'Outbox Directory',
         'settings.about': 'About',
-        'settings.version': 'Version'
+        'settings.version': 'Version',
+        'settings.copySecret': 'Copy',
+        'settings.saveSecret': 'Save',
+        'settings.copied': 'Copied!',
+        'settings.connectHint': 'Share this secret with another PC to connect',
+        'settings.secretSaved': 'Secret saved! Reconnecting...'
     },
     es: {
         initializing: 'Iniciando...',
@@ -84,7 +89,12 @@ const i18n = {
         'settings.inboxDir': 'Directorio de Entrada',
         'settings.outboxDir': 'Directorio de Salida',
         'settings.about': 'Acerca de',
-        'settings.version': 'Versión'
+        'settings.version': 'Versión',
+        'settings.copySecret': 'Copiar',
+        'settings.saveSecret': 'Guardar',
+        'settings.copied': 'Copiado!',
+        'settings.connectHint': 'Comparte este secreto con otra PC para conectarte',
+        'settings.secretSaved': 'Secreto guardado! Reconectando...'
     }
 };
 
@@ -94,6 +104,7 @@ class SyncBeamApp {
         this.state = {
             localPeerId: null,
             listenPort: null,
+            projectSecret: null,
             discoveredPeers: new Map(),
             connectedPeers: new Map(),
             transfers: [],
@@ -459,16 +470,20 @@ class SyncBeamApp {
             case 'initialized':
                 this.state.localPeerId = data.localPeerId;
                 this.state.listenPort = data.listenPort;
+                this.state.projectSecret = data.projectSecret;
                 this.updateLocalPeerInfo();
+                this.updateSettingsInfo();
                 break;
 
             case 'state':
                 this.state.localPeerId = data.localPeerId;
                 this.state.listenPort = data.listenPort;
+                this.state.projectSecret = data.projectSecret;
                 data.connectedPeers.forEach(p => {
                     this.state.connectedPeers.set(p.peerId, p);
                 });
                 this.updateLocalPeerInfo();
+                this.updateSettingsInfo();
                 this.renderPeers();
                 break;
 
@@ -530,7 +545,36 @@ class SyncBeamApp {
             case 'clipboardReceived':
                 this.addClipboardItem(data);
                 break;
+
+            case 'secretChanged':
+                this.state.localPeerId = data.localPeerId;
+                this.state.listenPort = data.listenPort;
+                this.state.projectSecret = data.projectSecret;
+                this.state.discoveredPeers.clear();
+                this.state.connectedPeers.clear();
+                this.updateLocalPeerInfo();
+                this.updateSettingsInfo();
+                this.renderPeers();
+                this.showNotification(this.t('settings.secretSaved'));
+                break;
         }
+    }
+
+    showNotification(message) {
+        // Simple notification - could be improved with a toast system
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     sendToBackend(action, data) {
@@ -553,6 +597,36 @@ class SyncBeamApp {
         const listenPort = document.getElementById('listenPort');
         if (listenPort && this.state.listenPort) {
             listenPort.textContent = this.state.listenPort;
+        }
+    }
+
+    updateSettingsInfo() {
+        const secretInput = document.getElementById('projectSecret');
+        if (secretInput && this.state.projectSecret) {
+            secretInput.value = this.state.projectSecret;
+        }
+    }
+
+    copySecret() {
+        const secretInput = document.getElementById('projectSecret');
+        if (secretInput) {
+            navigator.clipboard.writeText(secretInput.value);
+            // Show brief feedback
+            const btn = document.getElementById('copySecretBtn');
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = this.t('settings.copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            }
+        }
+    }
+
+    saveSecret() {
+        const secretInput = document.getElementById('projectSecret');
+        if (secretInput && secretInput.value.trim()) {
+            this.sendToBackend('setSecret', { secret: secretInput.value.trim() });
         }
     }
 

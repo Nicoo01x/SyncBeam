@@ -17,7 +17,7 @@ public partial class MainWindow : Window
     private ClipboardWatcher? _clipboardWatcher;
     private OutboxWatcher? _outboxWatcher;
 
-    private readonly string _projectSecret;
+    private string _projectSecret;
     private readonly string _syncBeamPath;
 
     public MainWindow()
@@ -178,7 +178,8 @@ public partial class MainWindow : Window
             localPeerId = _peerManager.LocalPeerId,
             listenPort = _peerManager.ListenPort,
             inboxPath = Path.Combine(_syncBeamPath, "inbox"),
-            outboxPath = outboxPath
+            outboxPath = outboxPath,
+            projectSecret = _projectSecret
         });
     }
 
@@ -267,15 +268,11 @@ public partial class MainWindow : Window
 
             case "setSecret":
                 var newSecret = data.GetProperty("secret").GetString();
-                if (!string.IsNullOrEmpty(newSecret))
+                if (!string.IsNullOrEmpty(newSecret) && newSecret != _projectSecret)
                 {
                     SaveSecret(newSecret);
-                    // Would need to restart peer manager with new secret
-                    SendToUI("notification", new
-                    {
-                        type = "info",
-                        message = "Restart required for new secret to take effect"
-                    });
+                    // Restart with new secret
+                    RestartWithNewSecret(newSecret);
                 }
                 break;
 
@@ -310,7 +307,8 @@ public partial class MainWindow : Window
             localPeerId = _peerManager.LocalPeerId,
             listenPort = _peerManager.ListenPort,
             connectedPeers = peers,
-            clipboardSyncEnabled = _clipboardWatcher?.IsEnabled ?? false
+            clipboardSyncEnabled = _clipboardWatcher?.IsEnabled ?? false,
+            projectSecret = _projectSecret
         });
     }
 
@@ -350,6 +348,101 @@ public partial class MainWindow : Window
     {
         var secretPath = Path.Combine(_syncBeamPath, ".secret");
         File.WriteAllText(secretPath, secret);
+    }
+
+    private void RestartWithNewSecret(string newSecret)
+    {
+        // Stop current services
+        _clipboardWatcher?.Stop();
+        _outboxWatcher?.Dispose();
+        _peerManager?.Dispose();
+
+        // Update secret
+        _projectSecret = newSecret;
+
+        // Reinitialize
+        _peerManager = new PeerManager(_projectSecret);
+
+        _peerManager.PeerDiscovered += (_, e) =>
+        {
+            SendToUI("peerDiscovered", new
+            {
+                peerId = e.PeerId,
+                endpoint = e.Endpoint.ToString()
+            });
+        };
+
+        _peerManager.PeerConnected += (_, e) =>
+        {
+            SendToUI("peerConnected", new
+            {
+                peerId = e.PeerId,
+                isIncoming = e.Peer.IsIncoming
+            });
+        };
+
+        _peerManager.PeerDisconnected += (_, e) =>
+        {
+            SendToUI("peerDisconnected", new { peerId = e.PeerId });
+        };
+
+        _peerManager.MessageReceived += OnPeerMessage;
+
+        // Reinitialize transfer engine
+        _transferEngine = new FileTransferEngine(_peerManager, _syncBeamPath);
+
+        _transferEngine.TransferProgress += (_, e) =>
+        {
+            SendToUI("transferProgress", new
+            {
+                transferId = e.TransferId,
+                fileName = e.FileName,
+                progress = e.Progress,
+                bytesTransferred = e.BytesTransferred,
+                totalBytes = e.TotalBytes
+            });
+        };
+
+        _transferEngine.TransferCompleted += (_, e) =>
+        {
+            SendToUI("transferCompleted", new
+            {
+                transferId = e.TransferId,
+                fileName = e.FileName,
+                success = e.Success,
+                filePath = e.FilePath,
+                errorMessage = e.ErrorMessage
+            });
+        };
+
+        // Reinitialize clipboard watcher
+        _clipboardWatcher = new ClipboardWatcher(_peerManager);
+        _clipboardWatcher.ClipboardReceived += (_, e) =>
+        {
+            SendToUI("clipboardReceived", new
+            {
+                peerId = e.PeerId,
+                contentType = e.ContentType.ToString(),
+                dataSize = e.DataSize
+            });
+        };
+
+        // Reinitialize outbox watcher
+        var outboxPath = Path.Combine(_syncBeamPath, "outbox");
+        _outboxWatcher = new OutboxWatcher(_transferEngine, outboxPath);
+
+        // Start everything
+        _peerManager.Start();
+        _clipboardWatcher.Start();
+        _outboxWatcher.Start();
+
+        // Send updated state
+        SendToUI("secretChanged", new
+        {
+            localPeerId = _peerManager.LocalPeerId,
+            listenPort = _peerManager.ListenPort,
+            projectSecret = _projectSecret
+        });
     }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)

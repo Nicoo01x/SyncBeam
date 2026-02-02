@@ -178,8 +178,23 @@
                         <h3 data-i18n="settings.network">Network</h3>
                         <div class="setting-item">
                             <label data-i18n="settings.projectSecret">Project Secret</label>
-                            <input type="password" id="projectSecret" value="SyncBeam-Default-Secret" class="input">
-                            <p class="setting-hint" data-i18n="settings.secretHint">Peers must share the same secret to connect.</p>
+                            <div class="secret-input-group">
+                                <input type="text" id="projectSecret" value="" class="input" placeholder="Enter secret...">
+                                <button class="btn btn-secondary btn-sm" id="copySecretBtn" onclick="app.copySecret()" title="Copy">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                    </svg>
+                                </button>
+                                <button class="btn btn-primary btn-sm" id="saveSecretBtn" onclick="app.saveSecret()" title="Save">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                        <polyline points="17 21 17 13 7 13 7 21"/>
+                                        <polyline points="7 3 7 8 15 8"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="setting-hint" data-i18n="settings.connectHint">Share this secret with another PC to connect</p>
                         </div>
                         <div class="setting-item">
                             <label data-i18n="settings.listenPort">Listen Port</label>
