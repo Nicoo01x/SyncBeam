@@ -131,3 +131,6 @@ EBWebView/
 # Publish output
 publish/
 out/
+
+# Installer output
+installer/output/*.exe
