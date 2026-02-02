@@ -4,16 +4,26 @@
 
 ### P2P File and Clipboard Transfer for Windows
 
+[![Version](https://img.shields.io/badge/Version-3.0.0-4747B5.svg)](https://github.com/Nicoo01x/SyncBeam/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)](https://www.microsoft.com/windows)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-22c55e.svg)](CONTRIBUTING.md)
 
 <p align="center">
-  <strong>No servers - 100% Local - Ultra fast</strong>
+  <strong>No servers - 100% Local - Ultra fast - Zero configuration</strong>
 </p>
 
 </div>
+
+---
+
+## What's New in v3.0
+
+- **Zero Configuration**: No more project secrets - devices auto-discover and connect automatically
+- **Network Scanner**: See all devices on your network (computers, phones, routers, etc.)
+- **Device Icons**: Visual identification with device-type specific icons
+- **Improved UI**: Fixed-height cards and better device name resolution
 
 ---
 
@@ -21,7 +31,8 @@
 
 | Feature | Description |
 |---------|-------------|
-| **Auto-discovery** | Automatically finds other SyncBeam devices on your network via mDNS |
+| **Auto-discovery** | Automatically finds and connects to SyncBeam devices on your network |
+| **Network Scanner** | See all devices on your LAN with device-type detection |
 | **E2E Encryption** | Noise Protocol XX + AES-256-GCM for maximum security |
 | **File Transfer** | Support for files >10GB with automatic resume |
 | **Clipboard Sync** | Text, images, RTF and HTML synced in real-time |
@@ -59,10 +70,11 @@ dotnet run --project SyncBeam.App
 ### Quick Usage
 
 1. **Run SyncBeam** on two or more PCs on the same network
-2. **Devices appear automatically** in the Peers list
-3. **Share the same secret** (Settings > copy/paste the secret)
-4. **Connect** by clicking on the discovered peer
-5. **Transfer** by dragging files or copying to clipboard
+2. **Devices auto-discover** and connect automatically
+3. **Scan Network** to see all devices on your LAN
+4. **Transfer** by dragging files or copying to clipboard
+
+> No configuration needed! SyncBeam uses zero-config networking.
 
 ---
 
@@ -128,7 +140,7 @@ SyncBeam implements military-grade security:
 | **Handshake** | Noise Protocol XX | Mutual authentication with identity hiding |
 | **Transport** | AES-256-GCM | Authenticated encryption of all data |
 | **Integrity** | SHA-256 | Verification of each transferred chunk |
-| **Authorization** | Project Secret | Only peers with the same secret can connect |
+| **Network** | LAN Only | Connections restricted to local network |
 
 ### Handshake Flow
 
@@ -153,7 +165,6 @@ SyncBeam implements military-grade security:
 |-----------|---------|
 | `~/SyncBeam/inbox` | Received files are saved here |
 | `~/SyncBeam/outbox` | Drag files here to send them automatically |
-| `~/SyncBeam/.secret` | Your project secret (share with authorized peers) |
 
 ---
 
@@ -175,12 +186,14 @@ dotnet publish -c Release -r win-x64 --self-contained
 ### Run tests
 
 ```bash
-# P2P test console
-dotnet run --project SyncBeam.Console "my-secret"
+# P2P test console (first terminal)
+dotnet run --project SyncBeam.Console
 
-# In another terminal with the same secret
-dotnet run --project SyncBeam.Console "my-secret"
+# In another terminal
+dotnet run --project SyncBeam.Console
 ```
+
+> Both instances will auto-discover and connect on the same network.
 
 ### Test console commands
 
