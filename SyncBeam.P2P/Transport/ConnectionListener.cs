@@ -151,21 +151,48 @@ public static class ConnectionFactory
 
         try
         {
+            // Configure TCP client for better connection reliability
             client.NoDelay = true;
+            client.ReceiveTimeout = 30000;
+            client.SendTimeout = 30000;
 
-            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            connectCts.CancelAfter(TimeSpan.FromSeconds(10));
+            // Use a dedicated timeout for connection (not linked to parent token)
+            // This prevents "operation was canceled" when parent token is just for cleanup
+            using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 
-            await client.ConnectAsync(endpoint.Address, endpoint.Port, connectCts.Token);
+            try
+            {
+                await client.ConnectAsync(endpoint.Address, endpoint.Port, connectCts.Token);
+            }
+            catch (OperationCanceledException) when (connectCts.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                throw new TimeoutException($"Connection to {endpoint} timed out after 15 seconds");
+            }
+
+            // Check if parent cancellation was requested
+            ct.ThrowIfCancellationRequested();
 
             transport = new SecureTransport(client, localIdentity);
 
-            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            handshakeCts.CancelAfter(TimeSpan.FromSeconds(30));
+            // Handshake timeout
+            using var handshakeCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            await transport.HandshakeAsInitiatorAsync(handshakeCts.Token);
+            try
+            {
+                await transport.HandshakeAsInitiatorAsync(handshakeCts.Token);
+            }
+            catch (OperationCanceledException) when (handshakeCts.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                throw new TimeoutException($"Handshake with {endpoint} timed out after 30 seconds");
+            }
 
             return transport;
+        }
+        catch (SocketException ex)
+        {
+            transport?.Dispose();
+            client.Dispose();
+            throw new IOException($"Could not connect to {endpoint}: {ex.Message}", ex);
         }
         catch
         {

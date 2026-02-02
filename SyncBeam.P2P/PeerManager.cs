@@ -144,9 +144,24 @@ public sealed class PeerManager : IDisposable
                 errorMessage = "Peer already connected";
             }
         }
-        catch (Exception ex)
+        catch (TimeoutException ex)
+        {
+            errorMessage = "Connection timed out. Make sure the device is running SyncBeam.";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection timeout to {peerId}: {ex.Message}");
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "Connection was canceled.";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection canceled to {peerId}");
+        }
+        catch (System.IO.IOException ex)
         {
             errorMessage = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection IO error to {peerId}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Connection failed: {ex.Message}";
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection failed to {peerId}: {ex.Message}");
         }
         finally
@@ -215,9 +230,24 @@ public sealed class PeerManager : IDisposable
                 errorMessage = "Peer already connected";
             }
         }
-        catch (Exception ex)
+        catch (TimeoutException ex)
+        {
+            errorMessage = "Connection timed out. Make sure the device is running SyncBeam.";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection timeout to IP {ipAddress}: {ex.Message}");
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "Connection was canceled.";
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection canceled to IP {ipAddress}");
+        }
+        catch (System.IO.IOException ex)
         {
             errorMessage = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection IO error to IP {ipAddress}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Connection failed: {ex.Message}";
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection to IP {ipAddress} failed: {ex.Message}");
         }
         finally
