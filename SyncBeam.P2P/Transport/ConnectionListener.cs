@@ -186,6 +186,8 @@ public class PeerConnectedEventArgs : EventArgs
 
 public class PeerConnectionFailedEventArgs : EventArgs
 {
-    public required Exception Error { get; init; }
+    public Exception? Error { get; init; }
     public IPEndPoint? Endpoint { get; init; }
+    public string? PeerId { get; init; }
+    public string? ErrorMessage { get; init; }
 }

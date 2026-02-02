@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private FileTransferEngine? _transferEngine;
     private ClipboardWatcher? _clipboardWatcher;
     private OutboxWatcher? _outboxWatcher;
+    private UpdateChecker? _updateChecker;
 
     private readonly string _syncBeamPath;
 
@@ -38,11 +39,34 @@ public partial class MainWindow : Window
     {
         await InitializeWebViewAsync();
         InitializeBackend();
+        await CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        _updateChecker = new UpdateChecker();
+        _updateChecker.UpdateAvailable += (_, e) =>
+        {
+            SendToUI("updateAvailable", new
+            {
+                currentVersion = e.CurrentVersion,
+                latestVersion = e.LatestVersion,
+                releaseNotes = e.ReleaseNotes,
+                downloadUrl = e.DownloadUrl,
+                releaseUrl = e.ReleaseUrl
+            });
+        };
+
+        await _updateChecker.CheckForUpdatesAsync();
     }
 
     private async Task InitializeWebViewAsync()
     {
         await WebView.EnsureCoreWebView2Async();
+
+        // Disable developer tools (F12)
+        WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+        WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
         // Get the wwwroot directory path
         var wwwrootPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot");
@@ -98,6 +122,15 @@ public partial class MainWindow : Window
         _peerManager.PeerDisconnected += (_, e) =>
         {
             SendToUI("peerDisconnected", new { peerId = e.PeerId });
+        };
+
+        _peerManager.PeerConnectionFailed += (_, e) =>
+        {
+            SendToUI("peerConnectionFailed", new
+            {
+                peerId = e.PeerId,
+                errorMessage = e.ErrorMessage
+            });
         };
 
         _peerManager.NetworkDeviceDiscovered += (_, e) =>
@@ -301,6 +334,18 @@ public partial class MainWindow : Window
             case "openOutbox":
                 var outboxPath = Path.Combine(_syncBeamPath, "outbox");
                 System.Diagnostics.Process.Start("explorer.exe", outboxPath);
+                break;
+
+            case "openUrl":
+                var url = data.GetProperty("url").GetString();
+                if (!string.IsNullOrEmpty(url))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
                 break;
         }
     }

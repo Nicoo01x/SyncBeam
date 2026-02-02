@@ -513,6 +513,21 @@ class SyncBeamApp {
                 this.renderPeers();
                 break;
 
+            case 'peerConnectionFailed':
+                const failedPeer = this.state.discoveredPeers.get(data.peerId);
+                if (failedPeer) {
+                    failedPeer.connecting = false;
+                    failedPeer.connected = false;
+                }
+                // Also update network devices
+                for (const [ip, device] of this.state.networkDevices) {
+                    if (device.peerId === data.peerId) {
+                        device.isConnected = false;
+                    }
+                }
+                this.renderPeers();
+                break;
+
             case 'transferProgress':
                 this.updateTransferProgress(data);
                 break;

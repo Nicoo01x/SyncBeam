@@ -33,6 +33,7 @@ public sealed class PeerManager : IDisposable
     public event EventHandler<PeerEventArgs>? PeerConnected;
     public event EventHandler<PeerEventArgs>? PeerDisconnected;
     public event EventHandler<PeerDiscoveredEventArgs>? PeerDiscovered;
+    public event EventHandler<PeerConnectionFailedEventArgs>? PeerConnectionFailed;
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
     public event EventHandler<NetworkDeviceEventArgs>? NetworkDeviceDiscovered;
     public event EventHandler? NetworkScanCompleted;
@@ -95,10 +96,14 @@ public sealed class PeerManager : IDisposable
         if (!_connectingPeers.TryAdd(peerId, true))
             return false;
 
+        string? errorMessage = null;
         try
         {
             if (!_discoveredEndpoints.TryGetValue(peerId, out var endpoint))
+            {
+                errorMessage = "Peer endpoint not found";
                 return false;
+            }
 
             var transport = await ConnectionFactory.ConnectAsync(
                 endpoint, _localIdentity, _cts.Token);
@@ -116,15 +121,27 @@ public sealed class PeerManager : IDisposable
             else
             {
                 transport.Dispose();
+                errorMessage = "Peer already connected";
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Connection failed
+            errorMessage = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection failed to {peerId}: {ex.Message}");
         }
         finally
         {
             _connectingPeers.TryRemove(peerId, out _);
+
+            // Notify UI of connection failure
+            if (errorMessage != null)
+            {
+                PeerConnectionFailed?.Invoke(this, new PeerConnectionFailedEventArgs
+                {
+                    PeerId = peerId,
+                    ErrorMessage = errorMessage
+                });
+            }
         }
 
         return false;
