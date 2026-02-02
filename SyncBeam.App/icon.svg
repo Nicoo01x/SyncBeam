@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4747B5"/>
+      <stop offset="100%" style="stop-color:#3535a0"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <!-- Lightning bolt / beam -->
+  <path d="M148 40 L88 128 L120 128 L108 216 L168 128 L136 128 Z"
+        fill="#ffffff"
+        stroke="none"/>
+  <!-- Sync arrows hint -->
+  <circle cx="128" cy="128" r="90" fill="none" stroke="#ffffff" stroke-width="8" stroke-dasharray="40 20" opacity="0.3"/>
+</svg>

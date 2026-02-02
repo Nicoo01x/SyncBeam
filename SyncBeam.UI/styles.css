@@ -463,14 +463,17 @@ body {
 .drop-zone {
     border: 2px dashed var(--border-default);
     border-radius: var(--radius-xl);
-    padding: 60px 40px;
+    padding: 40px 40px;
     text-align: center;
     transition: var(--transition-base);
-    cursor: pointer;
     margin-bottom: 32px;
     position: relative;
-    overflow: hidden;
     background: var(--bg-secondary);
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .drop-zone:hover,
@@ -486,15 +489,20 @@ body {
 
 .drop-zone-buttons {
     display: flex;
+    justify-content: center;
     gap: 12px;
     margin-top: 20px;
     pointer-events: auto;
+    flex-wrap: wrap;
 }
 
 .drop-zone-buttons .btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
+    min-width: 160px;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .drop-icon {

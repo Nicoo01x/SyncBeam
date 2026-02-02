@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="SyncBeam"
+        Icon="pack://application:,,,/app.ico"
         Height="700"
         Width="1000"
         MinHeight="500"
@@ -37,7 +38,7 @@
 
                 <!-- Logo -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="⚡" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <Image Source="pack://application:,,,/logo.png" Width="20" Height="20" VerticalAlignment="Center" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality"/>
                     <TextBlock Text="SyncBeam" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
                 </StackPanel>
 
