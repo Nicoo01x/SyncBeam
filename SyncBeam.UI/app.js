@@ -500,6 +500,14 @@ class SyncBeamApp {
                     discovered.connected = true;
                     discovered.connecting = false;
                 }
+                // Update network devices
+                for (const [ip, device] of this.state.networkDevices) {
+                    if (device.peerId === data.peerId) {
+                        device.isConnected = true;
+                        device.isConnecting = false;
+                    }
+                }
+                this.showNotification('Connected successfully!');
                 this.renderPeers();
                 break;
 
@@ -509,6 +517,13 @@ class SyncBeamApp {
                 if (disc) {
                     disc.connected = false;
                     disc.connecting = false;
+                }
+                // Update network devices
+                for (const [ip, device] of this.state.networkDevices) {
+                    if (device.peerId === data.peerId) {
+                        device.isConnected = false;
+                        device.isConnecting = false;
+                    }
                 }
                 this.renderPeers();
                 break;
@@ -523,8 +538,10 @@ class SyncBeamApp {
                 for (const [ip, device] of this.state.networkDevices) {
                     if (device.peerId === data.peerId) {
                         device.isConnected = false;
+                        device.isConnecting = false;
                     }
                 }
+                this.showNotification(`Connection failed: ${data.errorMessage || 'Unknown error'}`);
                 this.renderPeers();
                 break;
 
@@ -727,7 +744,7 @@ class SyncBeamApp {
         grid.innerHTML = sortedDevices.map(device => {
             const isConnected = device.isConnected;
             const hasSyncBeam = device.hasSyncBeam;
-            const isConnecting = device.peerId && this.state.discoveredPeers.get(device.peerId)?.connecting && !isConnected;
+            const isConnecting = (device.isConnecting || (device.peerId && this.state.discoveredPeers.get(device.peerId)?.connecting)) && !isConnected;
             const displayName = device.hostname || device.ip;
             const shortName = displayName.length > 18 ? displayName.substring(0, 18) + '...' : displayName;
             const deviceType = device.deviceType || 'Unknown';
@@ -771,7 +788,7 @@ class SyncBeamApp {
                         ` : (hasSyncBeam ? (isConnecting ? `
                             <span class="peer-hint">${this.t('peers.connecting')}</span>
                         ` : `
-                            <button class="btn btn-primary btn-sm" onclick="app.connectToPeer('${device.peerId}')">
+                            <button class="btn btn-primary btn-sm" onclick="app.connectToDevice('${device.peerId || ''}', '${device.ip}')">
                                 ${this.t('peers.connect')}
                             </button>
                         `) : `
@@ -847,7 +864,47 @@ class SyncBeamApp {
     }
 
     connectToPeer(peerId) {
+        // Immediately show connecting state
+        const peer = this.state.discoveredPeers.get(peerId);
+        if (peer) {
+            peer.connecting = true;
+            peer.connected = false;
+        }
+
+        // Also update network devices
+        for (const [ip, device] of this.state.networkDevices) {
+            if (device.peerId === peerId) {
+                device.isConnecting = true;
+            }
+        }
+
+        this.renderPeers();
         this.sendToBackend('connect', { peerId });
+    }
+
+    connectToDevice(peerId, ip) {
+        // Update UI immediately to show connecting state
+        const device = this.state.networkDevices.get(ip);
+        if (device) {
+            device.isConnecting = true;
+        }
+
+        if (peerId) {
+            const peer = this.state.discoveredPeers.get(peerId);
+            if (peer) {
+                peer.connecting = true;
+                peer.connected = false;
+            }
+        }
+
+        this.renderPeers();
+
+        // If we have a peerId, try that first; otherwise connect by IP
+        if (peerId) {
+            this.sendToBackend('connect', { peerId });
+        } else {
+            this.sendToBackend('connectToIp', { ip });
+        }
     }
 
     sendFileToPeer(peerId) {

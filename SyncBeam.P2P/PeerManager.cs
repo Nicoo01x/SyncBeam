@@ -99,23 +99,41 @@ public sealed class PeerManager : IDisposable
         string? errorMessage = null;
         try
         {
+            // First try to get endpoint from mDNS discovery
             if (!_discoveredEndpoints.TryGetValue(peerId, out var endpoint))
             {
-                errorMessage = "Peer endpoint not found";
-                return false;
+                // Try to find the endpoint from network scanner by peerId
+                var device = _networkScanner.Devices.Values
+                    .FirstOrDefault(d => d.SyncBeamPeerId == peerId);
+
+                if (device != null)
+                {
+                    // Use default SyncBeam port (the listener port)
+                    endpoint = new IPEndPoint(device.IpAddress, _listener.Port);
+                    _discoveredEndpoints.TryAdd(peerId, endpoint);
+                }
+                else
+                {
+                    errorMessage = "Peer endpoint not found. Try scanning the network first.";
+                    return false;
+                }
             }
+
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connecting to {peerId} at {endpoint}");
 
             var transport = await ConnectionFactory.ConnectAsync(
                 endpoint, _localIdentity, _cts.Token);
 
+            var remotePeerId = transport.RemotePeer?.PeerId ?? peerId;
             var peer = new ConnectedPeer(transport, false);
-            if (_peers.TryAdd(peerId, peer))
+
+            if (_peers.TryAdd(remotePeerId, peer))
             {
-                peer.Disconnected += (_, _) => OnPeerDisconnected(peerId);
-                peer.MessageReceived += (_, e) => OnMessageReceived(peerId, e);
+                peer.Disconnected += (_, _) => OnPeerDisconnected(remotePeerId);
+                peer.MessageReceived += (_, e) => OnMessageReceived(remotePeerId, e);
                 peer.StartReceiving(_cts.Token);
 
-                PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = peerId, Peer = peer });
+                PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = remotePeerId, Peer = peer });
                 return true;
             }
             else
@@ -139,6 +157,76 @@ public sealed class PeerManager : IDisposable
                 PeerConnectionFailed?.Invoke(this, new PeerConnectionFailedEventArgs
                 {
                     PeerId = peerId,
+                    ErrorMessage = errorMessage
+                });
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Connect to a peer by IP address.
+    /// </summary>
+    public async Task<bool> ConnectToIpAsync(string ipAddress, int? port = null)
+    {
+        var targetPort = port ?? _listener.Port;
+        var connectionId = $"ip-{ipAddress}";
+
+        if (!_connectingPeers.TryAdd(connectionId, true))
+            return false;
+
+        string? errorMessage = null;
+        try
+        {
+            if (!IPAddress.TryParse(ipAddress, out var ip))
+            {
+                errorMessage = "Invalid IP address";
+                return false;
+            }
+
+            var endpoint = new IPEndPoint(ip, targetPort);
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connecting to IP {endpoint}");
+
+            var transport = await ConnectionFactory.ConnectAsync(
+                endpoint, _localIdentity, _cts.Token);
+
+            var peerId = transport.RemotePeer?.PeerId ?? connectionId;
+            var peer = new ConnectedPeer(transport, false);
+
+            if (_peers.TryAdd(peerId, peer))
+            {
+                _discoveredEndpoints.TryAdd(peerId, endpoint);
+                peer.Disconnected += (_, _) => OnPeerDisconnected(peerId);
+                peer.MessageReceived += (_, e) => OnMessageReceived(peerId, e);
+                peer.StartReceiving(_cts.Token);
+
+                // Mark as SyncBeam device
+                _networkScanner.MarkAsSyncBeamDevice(ip, peerId);
+
+                PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = peerId, Peer = peer });
+                return true;
+            }
+            else
+            {
+                transport.Dispose();
+                errorMessage = "Peer already connected";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection to IP {ipAddress} failed: {ex.Message}");
+        }
+        finally
+        {
+            _connectingPeers.TryRemove(connectionId, out _);
+
+            if (errorMessage != null)
+            {
+                PeerConnectionFailed?.Invoke(this, new PeerConnectionFailedEventArgs
+                {
+                    PeerId = connectionId,
                     ErrorMessage = errorMessage
                 });
             }

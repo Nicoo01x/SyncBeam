@@ -302,6 +302,12 @@ public partial class MainWindow : Window
                 _peerManager.ScanNetwork();
                 break;
 
+            case "connectToIp":
+                var ip = data.GetProperty("ip").GetString();
+                if (ip != null)
+                    await _peerManager.ConnectToIpAsync(ip);
+                break;
+
             case "acceptFile":
                 var acceptPeerId = data.GetProperty("peerId").GetString();
                 var acceptTransferId = data.GetProperty("transferId").GetString();
