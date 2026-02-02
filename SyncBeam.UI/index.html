@@ -15,12 +15,16 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <span class="logo-icon">⚡</span>
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                    </div>
                     <span class="logo-text">SyncBeam</span>
                 </div>
                 <div class="local-peer-info" id="localPeerInfo">
                     <span class="status-dot"></span>
-                    <span class="peer-id">Initializing...</span>
+                    <span class="peer-id" data-i18n="initializing">Initializing...</span>
                 </div>
             </div>
 
@@ -32,7 +36,7 @@
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                     </svg>
-                    <span>Peers</span>
+                    <span data-i18n="nav.peers">Peers</span>
                 </button>
                 <button class="nav-item" data-view="transfers">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -40,14 +44,14 @@
                         <polyline points="17,8 12,3 7,8"/>
                         <line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
-                    <span>Transfers</span>
+                    <span data-i18n="nav.transfers">Transfers</span>
                 </button>
                 <button class="nav-item" data-view="clipboard">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
                         <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
                     </svg>
-                    <span>Clipboard</span>
+                    <span data-i18n="nav.clipboard">Clipboard</span>
                 </button>
             </nav>
 
@@ -57,7 +61,7 @@
                         <circle cx="12" cy="12" r="3"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
-                    <span>Settings</span>
+                    <span data-i18n="nav.settings">Settings</span>
                 </button>
             </div>
         </aside>
@@ -67,22 +71,26 @@
             <!-- Peers View -->
             <section class="view active" id="peersView">
                 <header class="view-header">
-                    <h1>Nearby Peers</h1>
+                    <h1 data-i18n="peers.title">Nearby Peers</h1>
                     <button class="btn btn-secondary" id="refreshBtn">
                         <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M23 4v6h-6"/>
                             <path d="M1 20v-6h6"/>
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                         </svg>
-                        Refresh
+                        <span data-i18n="peers.refresh">Refresh</span>
                     </button>
                 </header>
 
                 <div class="peers-grid" id="peersGrid">
                     <div class="empty-state">
-                        <div class="empty-icon">📡</div>
-                        <h3>Scanning for peers...</h3>
-                        <p>Make sure other SyncBeam instances are running on your network with the same secret.</p>
+                        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                            <path d="M2 12h2M20 12h2M12 2v2M12 20v2"/>
+                        </svg>
+                        <h3 data-i18n="peers.scanning">Scanning for peers...</h3>
+                        <p data-i18n="peers.scanningHint">Make sure other SyncBeam instances are running on your network with the same secret.</p>
                     </div>
                 </div>
             </section>
@@ -90,27 +98,43 @@
             <!-- Transfers View -->
             <section class="view" id="transfersView">
                 <header class="view-header">
-                    <h1>File Transfers</h1>
+                    <h1 data-i18n="transfers.title">File Transfers</h1>
                 </header>
 
                 <!-- Drop Zone -->
                 <div class="drop-zone" id="dropZone">
                     <div class="drop-zone-content">
-                        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="17,8 12,3 7,8"/>
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
-                        <h3>Drop files here to send</h3>
-                        <p>or click to browse</p>
+                        <h3 data-i18n="transfers.dropTitle">Drop files here to send</h3>
+                        <p data-i18n="transfers.dropHint">or click to browse</p>
+                        <div class="drop-zone-buttons">
+                            <button class="btn btn-secondary" id="selectFilesBtn">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14,2 14,8 20,8"/>
+                                </svg>
+                                <span data-i18n="transfers.selectFiles">Select Files</span>
+                            </button>
+                            <button class="btn btn-secondary" id="selectFolderBtn">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                </svg>
+                                <span data-i18n="transfers.selectFolder">Select Folder</span>
+                            </button>
+                        </div>
                     </div>
                     <input type="file" id="fileInput" multiple hidden>
+                    <input type="file" id="folderInput" webkitdirectory hidden>
                 </div>
 
                 <!-- Transfer List -->
                 <div class="transfer-list" id="transferList">
                     <div class="empty-state small">
-                        <p>No active transfers</p>
+                        <p data-i18n="transfers.noActive">No active transfers</p>
                     </div>
                 </div>
             </section>
@@ -118,17 +142,17 @@
             <!-- Clipboard View -->
             <section class="view" id="clipboardView">
                 <header class="view-header">
-                    <h1>Clipboard Sync</h1>
+                    <h1 data-i18n="clipboard.title">Clipboard Sync</h1>
                     <label class="toggle">
                         <input type="checkbox" id="clipboardSync" checked>
                         <span class="toggle-slider"></span>
-                        <span class="toggle-label">Auto-sync</span>
+                        <span class="toggle-label" data-i18n="clipboard.autoSync">Auto-sync</span>
                     </label>
                 </header>
 
                 <div class="clipboard-history" id="clipboardHistory">
                     <div class="empty-state small">
-                        <p>Clipboard history will appear here</p>
+                        <p data-i18n="clipboard.noHistory">Clipboard history will appear here</p>
                     </div>
                 </div>
             </section>
@@ -136,39 +160,49 @@
             <!-- Settings View -->
             <section class="view" id="settingsView">
                 <header class="view-header">
-                    <h1>Settings</h1>
+                    <h1 data-i18n="settings.title">Settings</h1>
                 </header>
 
                 <div class="settings-content">
                     <div class="setting-group">
-                        <h3>Network</h3>
+                        <h3 data-i18n="settings.language">Language</h3>
                         <div class="setting-item">
-                            <label for="projectSecret">Project Secret</label>
+                            <div class="lang-selector">
+                                <button class="lang-btn active" data-lang="en">English</button>
+                                <button class="lang-btn" data-lang="es">Español</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3 data-i18n="settings.network">Network</h3>
+                        <div class="setting-item">
+                            <label data-i18n="settings.projectSecret">Project Secret</label>
                             <input type="password" id="projectSecret" value="SyncBeam-Default-Secret" class="input">
-                            <p class="setting-hint">Peers must share the same secret to connect.</p>
+                            <p class="setting-hint" data-i18n="settings.secretHint">Peers must share the same secret to connect.</p>
                         </div>
                         <div class="setting-item">
-                            <label>Listen Port</label>
+                            <label data-i18n="settings.listenPort">Listen Port</label>
                             <span class="setting-value" id="listenPort">-</span>
                         </div>
                     </div>
 
                     <div class="setting-group">
-                        <h3>Storage</h3>
+                        <h3 data-i18n="settings.storage">Storage</h3>
                         <div class="setting-item">
-                            <label>Inbox Directory</label>
+                            <label data-i18n="settings.inboxDir">Inbox Directory</label>
                             <span class="setting-value">~/SyncBeam/inbox</span>
                         </div>
                         <div class="setting-item">
-                            <label>Outbox Directory</label>
+                            <label data-i18n="settings.outboxDir">Outbox Directory</label>
                             <span class="setting-value">~/SyncBeam/outbox</span>
                         </div>
                     </div>
 
                     <div class="setting-group">
-                        <h3>About</h3>
+                        <h3 data-i18n="settings.about">About</h3>
                         <div class="setting-item">
-                            <label>Version</label>
+                            <label data-i18n="settings.version">Version</label>
                             <span class="setting-value">1.0.0</span>
                         </div>
                     </div>

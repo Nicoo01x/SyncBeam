@@ -54,7 +54,35 @@ public sealed class ClipboardWatcher : IDisposable
 
     public void Stop()
     {
+        if (_cts.IsCancellationRequested)
+            return;
+
         _cts.Cancel();
+
+        // Shutdown the dispatcher on the watcher thread to exit the message loop
+        _hwndSource?.Dispatcher.InvokeAsync(() =>
+        {
+            // Unregister from clipboard chain on the correct thread
+            if (_hwndSource != null && _nextClipboardViewer != IntPtr.Zero)
+            {
+                ChangeClipboardChain(_hwndSource.Handle, _nextClipboardViewer);
+                _nextClipboardViewer = IntPtr.Zero;
+            }
+
+            // Dispose HwndSource on the thread it was created
+            _hwndSource?.Dispose();
+            _hwndSource = null;
+
+            // Shutdown the dispatcher to exit Dispatcher.Run()
+            System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvokeShutdown(
+                System.Windows.Threading.DispatcherPriority.Normal);
+        });
+
+        // Wait for the thread to finish (with timeout)
+        if (_watcherThread.IsAlive)
+        {
+            _watcherThread.Join(TimeSpan.FromSeconds(2));
+        }
     }
 
     private void WatcherThreadProc()
@@ -322,14 +350,11 @@ public sealed class ClipboardWatcher : IDisposable
     {
         if (!_disposed)
         {
+            _peerManager.MessageReceived -= OnMessageReceived;
+
+            // Stop() handles HwndSource cleanup on the correct thread
             Stop();
 
-            if (_hwndSource != null && _nextClipboardViewer != IntPtr.Zero)
-            {
-                ChangeClipboardChain(_hwndSource.Handle, _nextClipboardViewer);
-            }
-
-            _hwndSource?.Dispose();
             _cts.Dispose();
             _disposed = true;
         }
