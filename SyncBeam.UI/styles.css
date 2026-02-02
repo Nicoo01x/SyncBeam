@@ -611,6 +611,81 @@ body {
     100% { transform: translateX(100%); }
 }
 
+.transfer-status {
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    background: var(--bg-tertiary);
+}
+
+.transfer-item.sending .transfer-status {
+    background: rgba(71, 71, 181, 0.2);
+    color: var(--color-secondary);
+}
+
+.transfer-item.receiving .transfer-status {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.transfer-item.completed .transfer-status {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.transfer-item.completed .transfer-progress-bar {
+    background: #22c55e;
+}
+
+.transfer-item.failed .transfer-status {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.transfer-item.failed .transfer-progress-bar {
+    background: #ef4444;
+}
+
+.transfer-cancel {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: var(--transition-base);
+    flex-shrink: 0;
+}
+
+.transfer-item:hover .transfer-cancel {
+    opacity: 1;
+}
+
+.transfer-cancel:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.transfer-cancel svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+}
+
+.transfer-cancel:hover svg {
+    color: #ef4444;
+}
+
+.transfer-speed {
+    color: var(--color-secondary);
+    font-weight: 500;
+}
+
 /* Clipboard */
 .clipboard-history {
     flex: 1;

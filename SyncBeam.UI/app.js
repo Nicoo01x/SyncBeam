@@ -22,6 +22,12 @@ const i18n = {
         'transfers.selectFiles': 'Select Files',
         'transfers.selectFolder': 'Select Folder',
         'transfers.noActive': 'No active transfers',
+        'transfers.cancel': 'Cancel',
+        'transfers.status.pending': 'Waiting...',
+        'transfers.status.sending': 'Sending',
+        'transfers.status.receiving': 'Receiving',
+        'transfers.status.completed': 'Completed',
+        'transfers.status.failed': 'Failed',
         'clipboard.title': 'Clipboard Sync',
         'clipboard.autoSync': 'Auto-sync',
         'clipboard.noHistory': 'Clipboard history will appear here',
@@ -58,6 +64,12 @@ const i18n = {
         'transfers.selectFiles': 'Seleccionar Archivos',
         'transfers.selectFolder': 'Seleccionar Carpeta',
         'transfers.noActive': 'No hay transferencias activas',
+        'transfers.cancel': 'Cancelar',
+        'transfers.status.pending': 'Esperando...',
+        'transfers.status.sending': 'Enviando',
+        'transfers.status.receiving': 'Recibiendo',
+        'transfers.status.completed': 'Completado',
+        'transfers.status.failed': 'Fallido',
         'clipboard.title': 'Sincronización de Portapapeles',
         'clipboard.autoSync': 'Auto-sincronizar',
         'clipboard.noHistory': 'El historial del portapapeles aparecerá aquí',
@@ -213,14 +225,34 @@ class SyncBeamApp {
         if (folderInput) {
             folderInput.addEventListener('change', (e) => {
                 const files = Array.from(e.target.files);
-                this.handleFiles(files, true);
+                this.handleFilesInBatches(files, true);
                 folderInput.value = '';
             });
         }
     }
 
+    async handleFilesInBatches(files, preservePath = false) {
+        const MAX_FILES_PER_BATCH = 50;
+        const MAX_TOTAL_FILES = 1000;
+
+        const totalToProcess = Math.min(files.length, MAX_TOTAL_FILES);
+
+        for (let i = 0; i < totalToProcess; i += MAX_FILES_PER_BATCH) {
+            const batch = files.slice(i, i + MAX_FILES_PER_BATCH);
+            this.handleFiles(batch, preservePath);
+
+            // Small delay to let UI update
+            if (i + MAX_FILES_PER_BATCH < totalToProcess) {
+                await new Promise(r => setTimeout(r, 10));
+            }
+        }
+
+        if (files.length > MAX_TOTAL_FILES) {
+            console.warn(`File limit reached (${MAX_TOTAL_FILES}). ${files.length - MAX_TOTAL_FILES} files were not included.`);
+        }
+    }
+
     async handleDroppedItems(items) {
-        const files = [];
         const entries = [];
 
         for (const item of items) {
@@ -228,41 +260,133 @@ class SyncBeamApp {
                 const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
                 if (entry) {
                     entries.push(entry);
-                } else {
-                    const file = item.getAsFile();
-                    if (file) files.push(file);
                 }
             }
         }
 
-        // Process entries (files and directories)
+        // Process entries in batches
+        this.processEntriesInBatches(entries);
+    }
+
+    async processEntriesInBatches(entries) {
+        const MAX_FILES_PER_BATCH = 50;
+        const MAX_TOTAL_FILES = 1000;
+        let totalFiles = 0;
+        let batch = [];
+
+        const processFile = async (entry, path) => {
+            if (totalFiles >= MAX_TOTAL_FILES) {
+                return false;
+            }
+
+            try {
+                const file = await new Promise((resolve, reject) => {
+                    entry.file(resolve, reject);
+                });
+                file.relativePath = path + file.name;
+                batch.push(file);
+                totalFiles++;
+
+                if (batch.length >= MAX_FILES_PER_BATCH) {
+                    this.handleFiles([...batch], true);
+                    batch = [];
+                    // Small delay to let UI breathe
+                    await new Promise(r => setTimeout(r, 10));
+                }
+                return true;
+            } catch (e) {
+                console.warn('Could not read file:', path + entry.name);
+                return true;
+            }
+        };
+
+        const processDirectory = async (dirEntry, path) => {
+            if (totalFiles >= MAX_TOTAL_FILES) {
+                return;
+            }
+
+            const reader = dirEntry.createReader();
+            let allEntries = [];
+
+            // readEntries may not return all entries at once
+            const readAllEntries = async () => {
+                const entries = await new Promise((resolve, reject) => {
+                    reader.readEntries(resolve, reject);
+                });
+                if (entries.length > 0) {
+                    allEntries = allEntries.concat(entries);
+                    await readAllEntries();
+                }
+            };
+
+            try {
+                await readAllEntries();
+            } catch (e) {
+                console.warn('Could not read directory:', path);
+                return;
+            }
+
+            for (const subEntry of allEntries) {
+                if (totalFiles >= MAX_TOTAL_FILES) break;
+
+                if (subEntry.isFile) {
+                    await processFile(subEntry, path + dirEntry.name + '/');
+                } else if (subEntry.isDirectory) {
+                    await processDirectory(subEntry, path + dirEntry.name + '/');
+                }
+            }
+        };
+
+        // Process all entries
         for (const entry of entries) {
-            await this.processEntry(entry, files);
+            if (totalFiles >= MAX_TOTAL_FILES) break;
+
+            if (entry.isFile) {
+                await processFile(entry, '');
+            } else if (entry.isDirectory) {
+                await processDirectory(entry, '');
+            }
         }
 
-        if (files.length > 0) {
-            this.handleFiles(files, true);
+        // Send remaining batch
+        if (batch.length > 0) {
+            this.handleFiles(batch, true);
+        }
+
+        // Warn if limit reached
+        if (totalFiles >= MAX_TOTAL_FILES) {
+            console.warn(`File limit reached (${MAX_TOTAL_FILES}). Some files may not be included.`);
         }
     }
 
     async processEntry(entry, files, path = '') {
+        // Kept for compatibility but not used for drag & drop anymore
         if (entry.isFile) {
-            const file = await new Promise((resolve) => entry.file(resolve));
-            // Add relative path info
-            file.relativePath = path + file.name;
-            files.push(file);
+            try {
+                const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+                file.relativePath = path + file.name;
+                files.push(file);
+            } catch (e) {
+                console.warn('Could not read file:', path + entry.name);
+            }
         } else if (entry.isDirectory) {
             const reader = entry.createReader();
-            const entries = await new Promise((resolve) => {
-                reader.readEntries(resolve);
-            });
-            for (const subEntry of entries) {
-                await this.processEntry(subEntry, files, path + entry.name + '/');
+            try {
+                const entries = await new Promise((resolve, reject) => {
+                    reader.readEntries(resolve, reject);
+                });
+                for (const subEntry of entries) {
+                    await this.processEntry(subEntry, files, path + entry.name + '/');
+                }
+            } catch (e) {
+                console.warn('Could not read directory:', path + entry.name);
             }
         }
     }
 
     handleFiles(files, preservePath = false) {
+        const MAX_VISIBLE_TRANSFERS = 100;
+
         files.forEach(file => {
             const transferId = `transfer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
             const filePath = preservePath ? (file.relativePath || file.webkitRelativePath || file.name) : file.name;
@@ -287,8 +411,24 @@ class SyncBeamApp {
             });
         });
 
-        // Update UI
-        this.renderTransfers();
+        // Limit visible transfers to prevent UI slowdown
+        if (this.state.transfers.length > MAX_VISIBLE_TRANSFERS) {
+            // Keep only the most recent transfers
+            this.state.transfers = this.state.transfers.slice(-MAX_VISIBLE_TRANSFERS);
+        }
+
+        // Update UI (debounced)
+        this.scheduleRenderTransfers();
+    }
+
+    scheduleRenderTransfers() {
+        if (this._renderTimeout) {
+            clearTimeout(this._renderTimeout);
+        }
+        this._renderTimeout = setTimeout(() => {
+            this.renderTransfers();
+            this._renderTimeout = null;
+        }, 50);
     }
 
     setupEventListeners() {
@@ -501,7 +641,7 @@ class SyncBeamApp {
             transfer.progress = data.progress;
             transfer.speed = data.speed;
             if (data.status) transfer.status = data.status;
-            this.renderTransfers();
+            this.scheduleRenderTransfers();
         }
     }
 
@@ -510,13 +650,13 @@ class SyncBeamApp {
         if (transfer) {
             transfer.status = status;
             if (progress !== null) transfer.progress = progress;
-            this.renderTransfers();
+            this.scheduleRenderTransfers();
         }
     }
 
     removeTransfer(transferId) {
         this.state.transfers = this.state.transfers.filter(t => t.id !== transferId);
-        this.renderTransfers();
+        this.scheduleRenderTransfers();
     }
 
     addIncomingTransfer(data) {
@@ -531,7 +671,7 @@ class SyncBeamApp {
                 status: 'receiving',
                 peerId: data.peerId
             });
-            this.renderTransfers();
+            this.scheduleRenderTransfers();
         }
     }
 
@@ -548,25 +688,56 @@ class SyncBeamApp {
             return;
         }
 
-        list.innerHTML = this.state.transfers.map(transfer => `
-            <div class="transfer-item">
-                <div class="transfer-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14,2 14,8 20,8"/>
-                    </svg>
-                </div>
-                <div class="transfer-info">
-                    <div class="transfer-name">${transfer.name}</div>
-                    <div class="transfer-meta">
-                        ${this.formatSize(transfer.size)} - ${transfer.speed || '0 B/s'}
+        list.innerHTML = this.state.transfers.map(transfer => {
+            const statusClass = transfer.status || 'pending';
+            const statusText = this.t(`transfers.status.${transfer.status}`) || transfer.status;
+            const speedText = transfer.speed ? this.formatSpeed(transfer.speed) : '';
+            const isFolder = transfer.name.includes('/');
+
+            return `
+                <div class="transfer-item ${statusClass}" data-transfer-id="${transfer.id}">
+                    <div class="transfer-icon">
+                        ${isFolder ? `
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        ` : `
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14,2 14,8 20,8"/>
+                            </svg>
+                        `}
                     </div>
-                    <div class="transfer-progress">
-                        <div class="transfer-progress-bar" style="width: ${transfer.progress || 0}%"></div>
+                    <div class="transfer-info">
+                        <div class="transfer-name">${this.escapeHtml(transfer.name)}</div>
+                        <div class="transfer-meta">
+                            <span>${this.formatSize(transfer.size)}</span>
+                            ${speedText ? `<span class="transfer-speed">${speedText}</span>` : ''}
+                            <span class="transfer-status">${statusText}</span>
+                        </div>
+                        <div class="transfer-progress">
+                            <div class="transfer-progress-bar" style="width: ${transfer.progress || 0}%"></div>
+                        </div>
                     </div>
+                    <button class="transfer-cancel" onclick="app.cancelTransfer('${transfer.id}')" title="${this.t('transfers.cancel')}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
                 </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+    }
+
+    cancelTransfer(transferId) {
+        this.sendToBackend('cancelTransfer', { transferId });
+        this.removeTransfer(transferId);
+    }
+
+    formatSpeed(bytesPerSecond) {
+        if (!bytesPerSecond) return '';
+        return this.formatSize(bytesPerSecond) + '/s';
     }
 
     addClipboardItem(data) {
