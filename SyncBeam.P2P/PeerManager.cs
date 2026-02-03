@@ -4,6 +4,8 @@ using System.Net;
 using MessagePack;
 using SyncBeam.P2P.Core;
 using SyncBeam.P2P.Discovery;
+using SyncBeam.P2P.Network;
+using SyncBeam.P2P.NatTraversal;
 using SyncBeam.P2P.Transport;
 
 namespace SyncBeam.P2P;
@@ -20,16 +22,34 @@ public sealed class PeerManager : IDisposable
     private readonly MdnsDiscovery _discovery;
     private readonly NetworkScanner _networkScanner;
     private readonly ConnectionListener _listener;
+    private readonly NetworkSetupManager _networkSetup;
+    private readonly NatTraversalCoordinator _natTraversal;
     private readonly ConcurrentDictionary<string, ConnectedPeer> _peers = new();
     private readonly ConcurrentDictionary<string, IPEndPoint> _discoveredEndpoints = new();
     private readonly ConcurrentDictionary<string, bool> _connectingPeers = new();
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
+    private bool _networkSetupComplete;
 
     public string LocalPeerId => _localIdentity.PeerId;
     public int ListenPort => _listener.Port;
     public IReadOnlyDictionary<string, ConnectedPeer> ConnectedPeers => _peers;
     public IReadOnlyDictionary<string, NetworkDevice> NetworkDevices => _networkScanner.Devices;
+
+    /// <summary>
+    /// Gets the network setup manager for firewall, UPnP, and NAT configuration.
+    /// </summary>
+    public NetworkSetupManager NetworkSetup => _networkSetup;
+
+    /// <summary>
+    /// Gets the NAT traversal coordinator for hole punching.
+    /// </summary>
+    public NatTraversalCoordinator NatTraversal => _natTraversal;
+
+    /// <summary>
+    /// Gets whether the network setup has completed.
+    /// </summary>
+    public bool IsNetworkSetupComplete => _networkSetupComplete;
 
     public event EventHandler<PeerEventArgs>? PeerConnected;
     public event EventHandler<PeerEventArgs>? PeerDisconnected;
@@ -38,6 +58,16 @@ public sealed class PeerManager : IDisposable
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
     public event EventHandler<NetworkDeviceEventArgs>? NetworkDeviceDiscovered;
     public event EventHandler? NetworkScanCompleted;
+
+    /// <summary>
+    /// Event raised when network status changes.
+    /// </summary>
+    public event EventHandler<NetworkStatusEventArgs>? NetworkStatusChanged;
+
+    /// <summary>
+    /// Event raised to report network setup progress.
+    /// </summary>
+    public event EventHandler<SetupProgressEventArgs>? SetupProgress;
 
     private const int DefaultPort = 42420;
 
@@ -56,6 +86,14 @@ public sealed class PeerManager : IDisposable
         _networkScanner = new NetworkScanner();
         _networkScanner.DeviceDiscovered += OnNetworkDeviceDiscovered;
         _networkScanner.ScanCompleted += (_, _) => NetworkScanCompleted?.Invoke(this, EventArgs.Empty);
+
+        // Initialize network setup manager
+        _networkSetup = new NetworkSetupManager(_listener.Port);
+        _networkSetup.StatusChanged += (_, e) => NetworkStatusChanged?.Invoke(this, e);
+        _networkSetup.SetupProgress += (_, e) => SetupProgress?.Invoke(this, e);
+
+        // Initialize NAT traversal coordinator
+        _natTraversal = new NatTraversalCoordinator(_listener.Port);
     }
 
     public void Start()
@@ -63,6 +101,81 @@ public sealed class PeerManager : IDisposable
         _listener.Start();
         _discovery.Start();
         _networkScanner.StartScan();
+
+        // Start network setup in background
+        _ = SetupNetworkAsync();
+    }
+
+    /// <summary>
+    /// Performs network setup including firewall, UPnP, and NAT detection.
+    /// This is called automatically in Start() but can be called manually for retry.
+    /// </summary>
+    public async Task<NetworkSetupResult> SetupNetworkAsync()
+    {
+        try
+        {
+            var result = await _networkSetup.SetupAsync(_cts.Token);
+            _networkSetupComplete = true;
+
+            // Initialize NAT traversal if we're behind NAT
+            if (result.NatInfo?.IsBehindNat == true)
+            {
+                await _natTraversal.InitializeAsync(_cts.Token);
+            }
+
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            return new NetworkSetupResult { IsReady = false };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PeerManager] Network setup failed: {ex.Message}");
+            return new NetworkSetupResult { IsReady = false };
+        }
+    }
+
+    /// <summary>
+    /// Gets the current network status summary.
+    /// </summary>
+    public NetworkStatusSummary GetNetworkStatus()
+    {
+        return _networkSetup.GetStatusSummary();
+    }
+
+    /// <summary>
+    /// Runs network diagnostics.
+    /// </summary>
+    public Task<DiagnosticReport> RunDiagnosticsAsync()
+    {
+        return _networkSetup.RunDiagnosticsAsync(_cts.Token);
+    }
+
+    /// <summary>
+    /// Checks connectivity to a specific endpoint.
+    /// </summary>
+    public Task<PeerConnectivityResult> CheckPeerConnectivityAsync(IPEndPoint endpoint)
+    {
+        return _networkSetup.CheckPeerConnectivityAsync(endpoint, _cts.Token);
+    }
+
+    /// <summary>
+    /// Configures firewall rules for SyncBeam.
+    /// </summary>
+    public Task<FirewallConfigResult> ConfigureFirewallAsync()
+    {
+        return _networkSetup.ConfigureFirewallAsync();
+    }
+
+    /// <summary>
+    /// Configures UPnP port mapping.
+    /// </summary>
+    public async Task<bool> ConfigureUpnpAsync()
+    {
+        var tcpResult = await _networkSetup.ConfigureUpnpAsync(_listener.Port, PortMappingProtocol.TCP, _cts.Token);
+        var udpResult = await _networkSetup.ConfigureUpnpAsync(_listener.Port, PortMappingProtocol.UDP, _cts.Token);
+        return tcpResult.Success || udpResult.Success;
     }
 
     /// <summary>
@@ -536,6 +649,8 @@ public sealed class PeerManager : IDisposable
             _discovery.Dispose();
             _listener.Dispose();
             _localIdentity.Dispose();
+            _networkSetup.Dispose();
+            _natTraversal.Dispose();
             _cts.Dispose();
             _disposed = true;
         }

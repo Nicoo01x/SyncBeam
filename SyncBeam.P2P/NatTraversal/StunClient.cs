@@ -15,7 +15,12 @@ public static class StunClient
         "stun.l.google.com:19302",
         "stun1.l.google.com:19302",
         "stun2.l.google.com:19302",
-        "stun.cloudflare.com:3478"
+        "stun3.l.google.com:19302",
+        "stun4.l.google.com:19302",
+        "stun.cloudflare.com:3478",
+        "stun.stunprotocol.org:3478",
+        "stun.voip.blackberry.com:3478",
+        "stun.nextcloud.com:443"
     ];
 
     private const int StunHeaderSize = 20;
@@ -30,7 +35,8 @@ public static class StunClient
         int localPort,
         CancellationToken ct = default)
     {
-        foreach (var server in PublicStunServers)
+        // Try servers in parallel for faster discovery, take first success
+        var tasks = PublicStunServers.Select(server => Task.Run(async () =>
         {
             try
             {
@@ -38,18 +44,61 @@ public static class StunClient
                 var host = parts[0];
                 var port = int.Parse(parts[1]);
 
-                var result = await QueryStunServerAsync(host, port, localPort, ct);
+                return await QueryStunServerAsync(host, port, localPort, ct);
+            }
+            catch
+            {
+                return null;
+            }
+        }, ct)).ToList();
+
+        // Wait for first successful result
+        while (tasks.Count > 0)
+        {
+            var completedTask = await Task.WhenAny(tasks);
+            tasks.Remove(completedTask);
+
+            try
+            {
+                var result = await completedTask;
                 if (result != null)
                     return result;
             }
             catch
             {
-                // Try next server
+                // Continue with other tasks
             }
         }
 
         return null;
     }
+
+    /// <summary>
+    /// Discovers the public endpoint by querying a specific STUN server.
+    /// </summary>
+    public static async Task<IPEndPoint?> DiscoverPublicEndpointFromServerAsync(
+        string stunServer,
+        int localPort,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var parts = stunServer.Split(':');
+            var host = parts[0];
+            var port = parts.Length > 1 ? int.Parse(parts[1]) : 3478;
+
+            return await QueryStunServerAsync(host, port, localPort, ct);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets the list of available STUN servers.
+    /// </summary>
+    public static IReadOnlyList<string> GetStunServers() => PublicStunServers;
 
     private static async Task<IPEndPoint?> QueryStunServerAsync(
         string host,

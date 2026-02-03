@@ -1,10 +1,12 @@
 using System.IO;
+using System.Net;
 using System.Text.Json;
 using System.Windows;
 using MessagePack;
 using Microsoft.Web.WebView2.Core;
 using SyncBeam.Clipboard;
 using SyncBeam.P2P;
+using SyncBeam.P2P.Network;
 using SyncBeam.P2P.Transport;
 using SyncBeam.Streams;
 
@@ -151,6 +153,25 @@ public partial class MainWindow : Window
             SendToUI("networkScanCompleted", new { });
         };
 
+        _peerManager.NetworkStatusChanged += (_, e) =>
+        {
+            SendToUI("networkStatus", new
+            {
+                component = e.Component.ToString(),
+                status = e.Status.ToString(),
+                message = e.Message
+            });
+        };
+
+        _peerManager.SetupProgress += (_, e) =>
+        {
+            SendToUI("setupProgress", new
+            {
+                message = e.Message,
+                percentComplete = e.PercentComplete
+            });
+        };
+
         _peerManager.MessageReceived += OnPeerMessage;
 
         // Initialize FileTransferEngine
@@ -223,13 +244,16 @@ public partial class MainWindow : Window
         _clipboardWatcher.Start();
         _outboxWatcher.Start();
 
-        // Send initial state
+        // Send initial state with network status
+        var networkStatus = _peerManager.GetNetworkStatus();
         SendToUI("initialized", new
         {
             localPeerId = _peerManager.LocalPeerId,
             listenPort = _peerManager.ListenPort,
             inboxPath = Path.Combine(_syncBeamPath, "inbox"),
-            outboxPath = outboxPath
+            outboxPath = outboxPath,
+            firewallConfigured = networkStatus.FirewallConfigured,
+            upnpAvailable = networkStatus.UpnpAvailable
         });
     }
 
@@ -353,7 +377,154 @@ public partial class MainWindow : Window
                     });
                 }
                 break;
+
+            case "configureFirewall":
+                await ConfigureFirewallAsync();
+                break;
+
+            case "configureUpnp":
+                await ConfigureUpnpAsync();
+                break;
+
+            case "runDiagnostics":
+                await RunDiagnosticsAsync();
+                break;
+
+            case "getNetworkStatus":
+                SendNetworkStatus();
+                break;
+
+            case "checkPeerConnectivity":
+                var checkIp = data.GetProperty("ip").GetString();
+                var checkPort = data.TryGetProperty("port", out var portElement)
+                    ? portElement.GetInt32()
+                    : _peerManager?.ListenPort ?? 42420;
+                if (!string.IsNullOrEmpty(checkIp))
+                    await CheckPeerConnectivityAsync(checkIp, checkPort);
+                break;
         }
+    }
+
+    private async Task ConfigureFirewallAsync()
+    {
+        if (_peerManager == null) return;
+
+        var result = await _peerManager.ConfigureFirewallAsync();
+        SendToUI("firewallConfigResult", new
+        {
+            success = result.Success,
+            requiresElevation = result.RequiresElevation,
+            message = result.Message
+        });
+
+        if (result.RequiresElevation)
+        {
+            // Ask user if they want to elevate
+            SendToUI("firewallElevationRequired", new
+            {
+                message = "Administrator privileges are required to configure the firewall. Would you like to restart SyncBeam with elevated permissions?"
+            });
+        }
+    }
+
+    private async Task ConfigureUpnpAsync()
+    {
+        if (_peerManager == null) return;
+
+        var success = await _peerManager.ConfigureUpnpAsync();
+        var status = _peerManager.GetNetworkStatus();
+
+        SendToUI("upnpConfigResult", new
+        {
+            success,
+            externalIp = status.ExternalIp?.ToString(),
+            portMapped = status.PortMapped,
+            message = success ? $"Port {status.ListenPort} mapped successfully" : "Failed to configure UPnP"
+        });
+    }
+
+    private async Task RunDiagnosticsAsync()
+    {
+        if (_peerManager == null) return;
+
+        SendToUI("diagnosticsStarted", new { });
+
+        var report = await _peerManager.RunDiagnosticsAsync();
+
+        SendToUI("diagnosticResult", new
+        {
+            portAvailable = report.PortAvailable,
+            internetConnected = report.InternetConnectivity.IsConnected,
+            internetLatency = report.InternetConnectivity.Latency,
+            dnsWorking = report.InternetConnectivity.DnsWorking,
+            stunSuccess = report.StunResult.Success,
+            publicEndpoint = report.StunResult.PublicEndpoint?.ToString(),
+            natType = report.StunResult.NatType.ToString(),
+            upnpFound = report.UpnpResult.DeviceFound,
+            upnpExternalIp = report.UpnpResult.ExternalIpAddress?.ToString(),
+            gatewayAddress = report.UpnpResult.GatewayAddress?.ToString(),
+            firewallConfigured = report.FirewallStatus.RulesConfigured,
+            firewallEnabled = report.FirewallStatus.FirewallEnabled,
+            isAdmin = report.FirewallStatus.IsAdmin,
+            recommendations = report.Recommendations,
+            interfaces = report.LocalInterfaces.Select(i => new
+            {
+                name = i.Name,
+                description = i.Description,
+                type = i.Type,
+                isUp = i.IsUp,
+                addresses = i.IPv4Addresses.Select(a => a.ToString()).ToList(),
+                gateways = i.GatewayAddresses.Select(a => a.ToString()).ToList()
+            }).ToList(),
+            duration = report.Duration.TotalMilliseconds
+        });
+    }
+
+    private void SendNetworkStatus()
+    {
+        if (_peerManager == null) return;
+
+        var status = _peerManager.GetNetworkStatus();
+        SendToUI("networkStatusFull", new
+        {
+            firewallConfigured = status.FirewallConfigured,
+            upnpAvailable = status.UpnpAvailable,
+            portMapped = status.PortMapped,
+            natType = status.NatType.ToString(),
+            publicEndpoint = status.PublicEndpoint?.ToString(),
+            externalIp = status.ExternalIp?.ToString(),
+            localIp = status.LocalIp?.ToString(),
+            gatewayIp = status.GatewayIp?.ToString(),
+            listenPort = status.ListenPort
+        });
+    }
+
+    private async Task CheckPeerConnectivityAsync(string ipAddress, int port)
+    {
+        if (_peerManager == null) return;
+
+        if (!IPAddress.TryParse(ipAddress, out var ip))
+        {
+            SendToUI("peerConnectivityResult", new
+            {
+                success = false,
+                diagnosis = "Invalid IP address"
+            });
+            return;
+        }
+
+        var endpoint = new IPEndPoint(ip, port);
+        var result = await _peerManager.CheckPeerConnectivityAsync(endpoint);
+
+        SendToUI("peerConnectivityResult", new
+        {
+            endpoint = endpoint.ToString(),
+            pingSuccessful = result.PingSuccessful,
+            pingLatency = result.PingLatency,
+            tcpPortOpen = result.TcpPortOpen,
+            udpReachable = result.UdpReachable,
+            diagnosis = result.Diagnosis
+        });
     }
 
     private void SendCurrentState()
@@ -366,12 +537,21 @@ public partial class MainWindow : Window
             isIncoming = p.Value.IsIncoming
         }).ToList();
 
+        var networkStatus = _peerManager.GetNetworkStatus();
+
         SendToUI("state", new
         {
             localPeerId = _peerManager.LocalPeerId,
             listenPort = _peerManager.ListenPort,
             connectedPeers = peers,
-            clipboardSyncEnabled = _clipboardWatcher?.IsEnabled ?? false
+            clipboardSyncEnabled = _clipboardWatcher?.IsEnabled ?? false,
+            networkSetupComplete = _peerManager.IsNetworkSetupComplete,
+            firewallConfigured = networkStatus.FirewallConfigured,
+            upnpAvailable = networkStatus.UpnpAvailable,
+            portMapped = networkStatus.PortMapped,
+            natType = networkStatus.NatType.ToString(),
+            publicEndpoint = networkStatus.PublicEndpoint?.ToString(),
+            externalIp = networkStatus.ExternalIp?.ToString()
         });
     }
 
