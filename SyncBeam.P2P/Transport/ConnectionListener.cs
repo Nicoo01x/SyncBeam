@@ -196,7 +196,8 @@ public static class ConnectionFactory
 
             // Use a dedicated timeout for connection (not linked to parent token)
             // This prevents "operation was canceled" when parent token is just for cleanup
-            using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            // Increased to 20 seconds for slower WiFi networks
+            using var connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
             try
             {
@@ -204,7 +205,7 @@ public static class ConnectionFactory
             }
             catch (OperationCanceledException) when (connectCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
-                throw new TimeoutException($"Connection to {endpoint} timed out after 15 seconds");
+                throw new TimeoutException($"Connection to {endpoint} timed out after 20 seconds");
             }
 
             // Check if parent cancellation was requested

@@ -88,9 +88,9 @@ public sealed class PeerManager : IDisposable
     }
 
     /// <summary>
-    /// Connect to a discovered peer by ID.
+    /// Connect to a discovered peer by ID with automatic retries.
     /// </summary>
-    public async Task<bool> ConnectToPeerAsync(string peerId)
+    public async Task<bool> ConnectToPeerAsync(string peerId, int maxRetries = 3)
     {
         if (_peers.ContainsKey(peerId))
             return true; // Already connected
@@ -100,10 +100,12 @@ public sealed class PeerManager : IDisposable
             return false;
 
         string? errorMessage = null;
+        IPEndPoint? endpoint = null;
+
         try
         {
             // First try to get endpoint from mDNS discovery
-            if (!_discoveredEndpoints.TryGetValue(peerId, out var endpoint))
+            if (!_discoveredEndpoints.TryGetValue(peerId, out endpoint))
             {
                 // Try to find the endpoint from network scanner by peerId
                 var device = _networkScanner.Devices.Values
@@ -122,32 +124,52 @@ public sealed class PeerManager : IDisposable
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connecting to {peerId} at {endpoint}");
-
-            var transport = await ConnectionFactory.ConnectAsync(
-                endpoint, _localIdentity, _cts.Token);
-
-            var remotePeerId = transport.RemotePeer?.PeerId ?? peerId;
-            var peer = new ConnectedPeer(transport, false);
-
-            if (_peers.TryAdd(remotePeerId, peer))
+            // Retry loop with exponential backoff
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                peer.Disconnected += (_, _) => OnPeerDisconnected(remotePeerId);
-                peer.MessageReceived += (_, e) => OnMessageReceived(remotePeerId, e);
-                peer.StartReceiving(_cts.Token);
+                if (_cts.Token.IsCancellationRequested)
+                    break;
 
-                PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = remotePeerId, Peer = peer });
-                return true;
+                System.Diagnostics.Debug.WriteLine($"[PeerManager] Connecting to {peerId} at {endpoint} (attempt {attempt}/{maxRetries})");
+
+                try
+                {
+                    var transport = await ConnectionFactory.ConnectAsync(
+                        endpoint, _localIdentity, _cts.Token);
+
+                    var remotePeerId = transport.RemotePeer?.PeerId ?? peerId;
+                    var peer = new ConnectedPeer(transport, false);
+
+                    if (_peers.TryAdd(remotePeerId, peer))
+                    {
+                        peer.Disconnected += (_, _) => OnPeerDisconnected(remotePeerId);
+                        peer.MessageReceived += (_, e) => OnMessageReceived(remotePeerId, e);
+                        peer.StartReceiving(_cts.Token);
+
+                        PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = remotePeerId, Peer = peer });
+                        return true;
+                    }
+                    else
+                    {
+                        transport.Dispose();
+                        errorMessage = "Peer already connected";
+                        return false;
+                    }
+                }
+                catch (Exception ex) when (attempt < maxRetries && !_cts.Token.IsCancellationRequested)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PeerManager] Attempt {attempt} failed: {ex.Message}");
+                    // Wait before retry with exponential backoff (500ms, 1000ms, 2000ms)
+                    await Task.Delay(500 * (int)Math.Pow(2, attempt - 1), _cts.Token);
+                }
             }
-            else
-            {
-                transport.Dispose();
-                errorMessage = "Peer already connected";
-            }
+
+            // If we get here, all retries failed - try to diagnose the issue
+            errorMessage = await DiagnoseConnectionFailureAsync(endpoint, peerId);
         }
         catch (TimeoutException ex)
         {
-            errorMessage = "Connection timed out. Make sure the device is running SyncBeam.";
+            errorMessage = DiagnoseTimeoutError(endpoint);
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection timeout to {peerId}: {ex.Message}");
         }
         catch (OperationCanceledException)
@@ -162,12 +184,12 @@ public sealed class PeerManager : IDisposable
         }
         catch (System.IO.IOException ex)
         {
-            errorMessage = ex.InnerException?.Message ?? ex.Message;
+            errorMessage = DiagnoseIOError(ex, endpoint);
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection IO error to {peerId}: {ex.Message}");
         }
         catch (System.Net.Sockets.SocketException ex)
         {
-            errorMessage = $"Network error: {ex.Message}";
+            errorMessage = DiagnoseSocketError(ex, endpoint);
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Socket error to {peerId}: {ex.Message}");
         }
         catch (Exception ex)
@@ -193,10 +215,75 @@ public sealed class PeerManager : IDisposable
         return false;
     }
 
+    private async Task<string> DiagnoseConnectionFailureAsync(IPEndPoint? endpoint, string peerId)
+    {
+        if (endpoint == null)
+            return "Could not determine peer address.";
+
+        // Try to ping the host to check basic connectivity
+        try
+        {
+            using var ping = new System.Net.NetworkInformation.Ping();
+            var reply = await ping.SendPingAsync(endpoint.Address, 1000);
+
+            if (reply.Status != System.Net.NetworkInformation.IPStatus.Success)
+            {
+                return $"Cannot reach {endpoint.Address}. Check if both devices are on the same network.";
+            }
+
+            // Host is reachable but port connection failed - likely firewall
+            return $"Cannot connect to port {endpoint.Port}. The Windows Firewall may be blocking the connection. " +
+                   "Run 'add-firewall-rules.bat' as Administrator on BOTH computers and restart SyncBeam.";
+        }
+        catch
+        {
+            return $"Connection failed to {endpoint}. Make sure SyncBeam is running on the other device and both are on the same network.";
+        }
+    }
+
+    private static string DiagnoseTimeoutError(IPEndPoint? endpoint)
+    {
+        if (endpoint == null)
+            return "Connection timed out.";
+
+        return $"Connection to {endpoint} timed out. This is usually caused by:\n" +
+               "• Windows Firewall blocking port " + endpoint.Port + "\n" +
+               "• The other device is not running SyncBeam\n" +
+               "• Network issues between devices\n\n" +
+               "Try running 'add-firewall-rules.bat' as Administrator on BOTH computers.";
+    }
+
+    private static string DiagnoseSocketError(System.Net.Sockets.SocketException ex, IPEndPoint? endpoint)
+    {
+        return ex.SocketErrorCode switch
+        {
+            System.Net.Sockets.SocketError.ConnectionRefused =>
+                $"Connection refused by {endpoint?.Address}. Make sure SyncBeam is running on the other device.",
+            System.Net.Sockets.SocketError.NetworkUnreachable =>
+                "Network unreachable. Check your network connection.",
+            System.Net.Sockets.SocketError.HostUnreachable =>
+                $"Cannot reach {endpoint?.Address}. Verify both devices are on the same network.",
+            System.Net.Sockets.SocketError.TimedOut =>
+                DiagnoseTimeoutError(endpoint),
+            System.Net.Sockets.SocketError.AccessDenied =>
+                "Access denied. Windows Firewall may be blocking the connection. " +
+                "Run 'add-firewall-rules.bat' as Administrator.",
+            _ => $"Network error ({ex.SocketErrorCode}): {ex.Message}"
+        };
+    }
+
+    private static string DiagnoseIOError(System.IO.IOException ex, IPEndPoint? endpoint)
+    {
+        if (ex.InnerException is System.Net.Sockets.SocketException socketEx)
+            return DiagnoseSocketError(socketEx, endpoint);
+
+        return ex.InnerException?.Message ?? ex.Message;
+    }
+
     /// <summary>
-    /// Connect to a peer by IP address.
+    /// Connect to a peer by IP address with automatic retries.
     /// </summary>
-    public async Task<bool> ConnectToIpAsync(string ipAddress, int? port = null)
+    public async Task<bool> ConnectToIpAsync(string ipAddress, int? port = null, int maxRetries = 3)
     {
         var targetPort = port ?? _listener.Port;
         var connectionId = $"ip-{ipAddress}";
@@ -205,6 +292,8 @@ public sealed class PeerManager : IDisposable
             return false;
 
         string? errorMessage = null;
+        IPEndPoint? endpoint = null;
+
         try
         {
             if (!IPAddress.TryParse(ipAddress, out var ip))
@@ -213,37 +302,58 @@ public sealed class PeerManager : IDisposable
                 return false;
             }
 
-            var endpoint = new IPEndPoint(ip, targetPort);
-            System.Diagnostics.Debug.WriteLine($"[PeerManager] Connecting to IP {endpoint}");
+            endpoint = new IPEndPoint(ip, targetPort);
 
-            var transport = await ConnectionFactory.ConnectAsync(
-                endpoint, _localIdentity, _cts.Token);
-
-            var peerId = transport.RemotePeer?.PeerId ?? connectionId;
-            var peer = new ConnectedPeer(transport, false);
-
-            if (_peers.TryAdd(peerId, peer))
+            // Retry loop with exponential backoff
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                _discoveredEndpoints.TryAdd(peerId, endpoint);
-                peer.Disconnected += (_, _) => OnPeerDisconnected(peerId);
-                peer.MessageReceived += (_, e) => OnMessageReceived(peerId, e);
-                peer.StartReceiving(_cts.Token);
+                if (_cts.Token.IsCancellationRequested)
+                    break;
 
-                // Mark as SyncBeam device
-                _networkScanner.MarkAsSyncBeamDevice(ip, peerId);
+                System.Diagnostics.Debug.WriteLine($"[PeerManager] Connecting to IP {endpoint} (attempt {attempt}/{maxRetries})");
 
-                PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = peerId, Peer = peer });
-                return true;
+                try
+                {
+                    var transport = await ConnectionFactory.ConnectAsync(
+                        endpoint, _localIdentity, _cts.Token);
+
+                    var peerId = transport.RemotePeer?.PeerId ?? connectionId;
+                    var peer = new ConnectedPeer(transport, false);
+
+                    if (_peers.TryAdd(peerId, peer))
+                    {
+                        _discoveredEndpoints.TryAdd(peerId, endpoint);
+                        peer.Disconnected += (_, _) => OnPeerDisconnected(peerId);
+                        peer.MessageReceived += (_, e) => OnMessageReceived(peerId, e);
+                        peer.StartReceiving(_cts.Token);
+
+                        // Mark as SyncBeam device
+                        _networkScanner.MarkAsSyncBeamDevice(ip, peerId);
+
+                        PeerConnected?.Invoke(this, new PeerEventArgs { PeerId = peerId, Peer = peer });
+                        return true;
+                    }
+                    else
+                    {
+                        transport.Dispose();
+                        errorMessage = "Peer already connected";
+                        return false;
+                    }
+                }
+                catch (Exception ex) when (attempt < maxRetries && !_cts.Token.IsCancellationRequested)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[PeerManager] Attempt {attempt} failed: {ex.Message}");
+                    // Wait before retry with exponential backoff
+                    await Task.Delay(500 * (int)Math.Pow(2, attempt - 1), _cts.Token);
+                }
             }
-            else
-            {
-                transport.Dispose();
-                errorMessage = "Peer already connected";
-            }
+
+            // If we get here, all retries failed
+            errorMessage = await DiagnoseConnectionFailureAsync(endpoint, connectionId);
         }
         catch (TimeoutException ex)
         {
-            errorMessage = "Connection timed out. Make sure the device is running SyncBeam.";
+            errorMessage = DiagnoseTimeoutError(endpoint);
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection timeout to IP {ipAddress}: {ex.Message}");
         }
         catch (OperationCanceledException)
@@ -258,12 +368,12 @@ public sealed class PeerManager : IDisposable
         }
         catch (IOException ex)
         {
-            errorMessage = ex.InnerException?.Message ?? ex.Message;
+            errorMessage = DiagnoseIOError(ex, endpoint);
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Connection IO error to IP {ipAddress}: {ex.Message}");
         }
         catch (System.Net.Sockets.SocketException ex)
         {
-            errorMessage = $"Network error: {ex.Message}";
+            errorMessage = DiagnoseSocketError(ex, endpoint);
             System.Diagnostics.Debug.WriteLine($"[PeerManager] Socket error to IP {ipAddress}: {ex.Message}");
         }
         catch (Exception ex)

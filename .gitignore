@@ -134,3 +134,5 @@ out/
 
 # Installer output
 installer/output/*.exe
+build-installer.bat
+installer/SyncBeam.iss
