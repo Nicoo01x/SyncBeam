@@ -106,8 +106,8 @@ public class NetworkDiagnostics
         var interfaces = GetLocalNetworkInterfaces();
         result.HasNetworkInterface = interfaces.Any(i => i.IsUp && !i.IsLoopback);
 
-        // Check port availability
-        result.PortAvailable = IsPortAvailable(_listenPort);
+        // Port is available - we're already listening on it
+        result.PortAvailable = true;
 
         // Check firewall (non-blocking quick check)
         var firewallStatus = FirewallManager.GetStatus();
@@ -116,16 +116,12 @@ public class NetworkDiagnostics
         // Quick internet check
         result.HasInternet = await QuickInternetCheckAsync(ct);
 
-        result.IsReady = result.HasNetworkInterface &&
-                         result.PortAvailable &&
-                         result.FirewallConfigured;
+        result.IsReady = result.HasNetworkInterface && result.FirewallConfigured;
 
         if (!result.IsReady)
         {
             if (!result.HasNetworkInterface)
                 result.Issue = "No network connection detected";
-            else if (!result.PortAvailable)
-                result.Issue = $"Port {_listenPort} is already in use";
             else if (!result.FirewallConfigured)
                 result.Issue = "Firewall rules not configured";
         }
