@@ -281,6 +281,54 @@
             margin-top: 0.25rem;
         }
 
+        /* Screenshots Section */
+        .screenshots {
+            padding: 6rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .screenshots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .screenshot-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .screenshot-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--color-secondary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .screenshot-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .screenshot-label {
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 768px) {
+            .screenshots-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Features Section */
         .features {
             padding: 6rem 2rem;
@@ -701,7 +749,7 @@
         <div class="hero-content">
             <div class="badge">
                 <span class="badge-dot"></span>
-                v3.0 - Zero Configuration
+                v3.0.8 - Zero Configuration
             </div>
             <h1>Transfer files <span>without limits</span></h1>
             <p class="hero-description">
@@ -737,6 +785,24 @@
                     <div class="stat-value">10GB+</div>
                     <div class="stat-label">File support</div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section class="screenshots" id="screenshots">
+        <div class="section-header">
+            <h2>See it in action</h2>
+            <p>Modern dark interface designed for simplicity and efficiency</p>
+        </div>
+        <div class="screenshots-grid">
+            <div class="screenshot-card">
+                <img src="principal.png" alt="Network Devices - See all devices on your network">
+                <div class="screenshot-label">Network Devices</div>
+            </div>
+            <div class="screenshot-card">
+                <img src="secundaria.png" alt="File Transfers - Drag and drop to send files">
+                <div class="screenshot-label">File Transfers</div>
             </div>
         </div>
     </section>

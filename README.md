@@ -4,7 +4,7 @@
 
 ### P2P File and Clipboard Transfer for Windows
 
-[![Version](https://img.shields.io/badge/Version-3.0.0-4747B5.svg)](https://github.com/Nicoo01x/SyncBeam/releases)
+[![Version](https://img.shields.io/badge/Version-3.0.8-4747B5.svg)](https://github.com/Nicoo01x/SyncBeam/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)](https://www.microsoft.com/windows)
@@ -13,6 +13,18 @@
 <p align="center">
   <strong>No servers - 100% Local - Ultra fast - Zero configuration</strong>
 </p>
+
+</div>
+
+---
+
+## Screenshots
+
+<div align="center">
+
+| Network Devices | File Transfers |
+|:---------------:|:--------------:|
+| ![Network Devices](docs/principal.png) | ![File Transfers](docs/secundaria.png) |
 
 </div>
 
