@@ -448,15 +448,19 @@ public class NetworkSetupManager : IDisposable
     {
         if (!_disposed)
         {
-            // Try to clean up port mappings synchronously on dispose
-            try
+            // Fire and forget cleanup - port mappings will expire naturally if this fails
+            // Avoid blocking call to prevent potential deadlocks on UI thread
+            _ = Task.Run(async () =>
             {
-                CleanupAsync(CancellationToken.None).GetAwaiter().GetResult();
-            }
-            catch
-            {
-                // Ignore cleanup errors on dispose
-            }
+                try
+                {
+                    await CleanupAsync(CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore cleanup errors on dispose
+                }
+            });
 
             _upnpManager.Dispose();
             _disposed = true;

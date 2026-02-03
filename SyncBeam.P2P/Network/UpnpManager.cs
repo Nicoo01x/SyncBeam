@@ -150,13 +150,15 @@ public class UpnpManager : IDisposable
     /// <param name="internalPort">Internal port number</param>
     /// <param name="protocol">Protocol (TCP or UDP)</param>
     /// <param name="leaseDuration">Lease duration in seconds (0 for permanent)</param>
+    /// <param name="retryOnConflict">Whether to retry after removing conflicting mapping</param>
     /// <returns>True if mapping was created successfully</returns>
     public async Task<PortMappingResult> CreatePortMappingAsync(
         int externalPort,
         int internalPort,
         PortMappingProtocol protocol = PortMappingProtocol.TCP,
         int leaseDuration = 0,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool retryOnConflict = true)
     {
         if (_controlUrl == null || _serviceType == null || LocalIpAddress == null)
         {
@@ -195,11 +197,11 @@ public class UpnpManager : IDisposable
                 var errorDesc = ExtractXmlValue(response, "errorDescription");
 
                 // Error 718 = ConflictInMappingEntry (port already mapped)
-                // Try to delete existing mapping and retry
-                if (errorCode == "718")
+                // Try to delete existing mapping and retry (only once)
+                if (errorCode == "718" && retryOnConflict)
                 {
                     await RemovePortMappingAsync(externalPort, protocol, ct);
-                    return await CreatePortMappingAsync(externalPort, internalPort, protocol, leaseDuration, ct);
+                    return await CreatePortMappingAsync(externalPort, internalPort, protocol, leaseDuration, ct, retryOnConflict: false);
                 }
 
                 return new PortMappingResult

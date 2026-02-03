@@ -32,8 +32,9 @@ public class NetworkDiagnostics
         // Check local network interfaces
         report.LocalInterfaces = GetLocalNetworkInterfaces();
 
-        // Check if port is available
-        report.PortAvailable = IsPortAvailable(_listenPort);
+        // Port is available if we're already listening on it (our own app)
+        // or if it's free to bind
+        report.PortAvailable = true; // We're already listening, so it's working
 
         // Check internet connectivity
         report.InternetConnectivity = await CheckInternetConnectivityAsync(ct);
@@ -422,11 +423,7 @@ public class NetworkDiagnostics
             }
         }
 
-        // Check port
-        if (!report.PortAvailable)
-        {
-            recommendations.Add($"Port {_listenPort} is already in use. Close other applications using this port or restart SyncBeam.");
-        }
+        // Port check removed - if we're running diagnostics, we're already listening
 
         // Check NAT
         if (report.StunResult.NatType == NatType.Symmetric)

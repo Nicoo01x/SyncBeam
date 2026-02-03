@@ -1202,3 +1202,97 @@ body {
     height: 18px;
     color: white;
 }
+
+/* Network Status Panel */
+.network-status-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.network-status-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.network-status-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.network-status-item:first-child {
+    padding-top: 0;
+}
+
+.status-indicator {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.status-icon {
+    width: 22px;
+    height: 22px;
+    stroke: var(--text-muted);
+    transition: var(--transition-base);
+}
+
+.status-icon.pending {
+    stroke: var(--text-muted);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-icon.ready {
+    stroke: var(--success);
+}
+
+.status-icon.warning {
+    stroke: var(--warning);
+}
+
+.status-icon.error {
+    stroke: var(--error);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.status-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.status-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.status-detail {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.network-status-item .btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+#runDiagnosticsBtn {
+    width: 100%;
+    justify-content: center;
+}

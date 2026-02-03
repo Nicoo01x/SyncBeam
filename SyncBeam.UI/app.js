@@ -44,7 +44,15 @@ const i18n = {
         'settings.inboxDir': 'Inbox Directory',
         'settings.outboxDir': 'Outbox Directory',
         'settings.about': 'About',
-        'settings.version': 'Version'
+        'settings.version': 'Version',
+        'settings.networkStatus': 'Network Status',
+        'settings.firewall': 'Firewall',
+        'settings.upnp': 'UPnP Router',
+        'settings.natType': 'NAT Type',
+        'settings.publicIp': 'Public IP',
+        'settings.configure': 'Configure',
+        'settings.openPort': 'Open Port',
+        'settings.runDiagnostics': 'Run Diagnostics'
     },
     es: {
         initializing: 'Iniciando...',
@@ -88,7 +96,15 @@ const i18n = {
         'settings.inboxDir': 'Directorio de Entrada',
         'settings.outboxDir': 'Directorio de Salida',
         'settings.about': 'Acerca de',
-        'settings.version': 'Versión'
+        'settings.version': 'Versión',
+        'settings.networkStatus': 'Estado de Red',
+        'settings.firewall': 'Firewall',
+        'settings.upnp': 'Router UPnP',
+        'settings.natType': 'Tipo NAT',
+        'settings.publicIp': 'IP Pública',
+        'settings.configure': 'Configurar',
+        'settings.openPort': 'Abrir Puerto',
+        'settings.runDiagnostics': 'Diagnóstico'
     }
 };
 
@@ -594,7 +610,180 @@ class SyncBeamApp {
             case 'updateAvailable':
                 this.showUpdateBanner(data);
                 break;
+
+            case 'networkStatus':
+                this.updateNetworkStatusItem(data.component, data.status, data.message);
+                break;
+
+            case 'networkStatusFull':
+                this.updateFullNetworkStatus(data);
+                break;
+
+            case 'setupProgress':
+                this.updateSetupProgress(data);
+                break;
+
+            case 'firewallConfigResult':
+                this.handleFirewallResult(data);
+                break;
+
+            case 'upnpConfigResult':
+                this.handleUpnpResult(data);
+                break;
+
+            case 'diagnosticResult':
+                this.showDiagnosticResults(data);
+                break;
+
+            case 'diagnosticsStarted':
+                this.showNotification('Running diagnostics...');
+                break;
         }
+    }
+
+    updateNetworkStatusItem(component, status, message) {
+        let iconId, detailId;
+        switch (component) {
+            case 'Firewall':
+                iconId = 'firewallStatus';
+                detailId = 'firewallDetail';
+                break;
+            case 'UPnP':
+                iconId = 'upnpStatus';
+                detailId = 'upnpDetail';
+                break;
+            case 'NAT':
+            case 'STUN':
+                iconId = 'natStatus';
+                detailId = 'natDetail';
+                break;
+        }
+
+        if (iconId) {
+            const iconEl = document.getElementById(iconId);
+            const detailEl = document.getElementById(detailId);
+            if (iconEl) {
+                const svg = iconEl.querySelector('.status-icon');
+                svg.classList.remove('pending', 'ready', 'warning', 'error');
+                svg.classList.add(status.toLowerCase());
+            }
+            if (detailEl) {
+                detailEl.textContent = message;
+            }
+        }
+    }
+
+    updateFullNetworkStatus(data) {
+        // Firewall
+        const firewallIcon = document.querySelector('#firewallStatus .status-icon');
+        const firewallDetail = document.getElementById('firewallDetail');
+        const firewallBtn = document.getElementById('configureFirewallBtn');
+        if (firewallIcon) {
+            firewallIcon.classList.remove('pending', 'ready', 'warning', 'error');
+            firewallIcon.classList.add(data.firewallConfigured ? 'ready' : 'warning');
+        }
+        if (firewallDetail) {
+            firewallDetail.textContent = data.firewallConfigured ? 'Configured ✓' : 'Not configured';
+        }
+        if (firewallBtn) {
+            firewallBtn.style.display = data.firewallConfigured ? 'none' : 'block';
+        }
+
+        // UPnP
+        const upnpIcon = document.querySelector('#upnpStatus .status-icon');
+        const upnpDetail = document.getElementById('upnpDetail');
+        const upnpBtn = document.getElementById('configureUpnpBtn');
+        if (upnpIcon) {
+            upnpIcon.classList.remove('pending', 'ready', 'warning', 'error');
+            upnpIcon.classList.add(data.upnpAvailable ? (data.portMapped ? 'ready' : 'warning') : 'error');
+        }
+        if (upnpDetail) {
+            upnpDetail.textContent = data.upnpAvailable
+                ? (data.portMapped ? `Port mapped ✓` : 'Available')
+                : 'Not available';
+        }
+        if (upnpBtn) {
+            upnpBtn.style.display = data.upnpAvailable && !data.portMapped ? 'block' : 'none';
+        }
+
+        // NAT
+        const natIcon = document.querySelector('#natStatus .status-icon');
+        const natDetail = document.getElementById('natDetail');
+        if (natIcon) {
+            natIcon.classList.remove('pending', 'ready', 'warning', 'error');
+            const isGoodNat = data.natType === 'None' || data.natType === 'FullCone';
+            natIcon.classList.add(isGoodNat ? 'ready' : (data.natType === 'Symmetric' ? 'warning' : 'ready'));
+        }
+        if (natDetail) {
+            natDetail.textContent = data.natType || 'Unknown';
+        }
+
+        // Public IP
+        const publicIpIcon = document.querySelector('#publicIpStatus .status-icon');
+        const publicIpDetail = document.getElementById('publicIpDetail');
+        if (publicIpIcon) {
+            publicIpIcon.classList.remove('pending', 'ready', 'warning', 'error');
+            publicIpIcon.classList.add(data.externalIp ? 'ready' : 'warning');
+        }
+        if (publicIpDetail) {
+            publicIpDetail.textContent = data.externalIp || data.publicEndpoint || 'Not detected';
+        }
+    }
+
+    updateSetupProgress(data) {
+        // Could show a progress indicator
+        console.log(`Setup: ${data.message} (${data.percentComplete}%)`);
+    }
+
+    handleFirewallResult(data) {
+        if (data.success) {
+            this.showNotification('Firewall configured successfully!');
+            this.sendToBackend('getNetworkStatus', {});
+        } else if (data.requiresElevation) {
+            this.showNotification('Admin rights required. Run as Administrator.');
+        } else {
+            this.showNotification(`Firewall error: ${data.message}`);
+        }
+    }
+
+    handleUpnpResult(data) {
+        if (data.success) {
+            this.showNotification(`Port mapped successfully! External IP: ${data.externalIp || 'detected'}`);
+            this.sendToBackend('getNetworkStatus', {});
+        } else {
+            this.showNotification(`UPnP error: ${data.message}`);
+        }
+    }
+
+    showDiagnosticResults(data) {
+        // Create a modal or expand section with results
+        const recommendations = data.recommendations?.join('\n- ') || 'No issues found';
+
+        let summary = `Network Diagnostics Results
+
+Firewall: ${data.firewallConfigured ? '[OK] Configured' : '[X] Not configured'}
+Internet: ${data.internetConnected ? `[OK] Connected (${data.internetLatency}ms)` : '[X] Offline'}
+STUN: ${data.stunSuccess ? `[OK] ${data.publicEndpoint}` : '[X] Failed'}
+NAT Type: ${data.natType}
+UPnP: ${data.upnpFound ? `[OK] Found (${data.gatewayAddress})` : '[X] Not found'}
+
+Recommendations:
+- ${recommendations}
+        `.trim();
+
+        alert(summary);
+    }
+
+    configureFirewall() {
+        this.sendToBackend('configureFirewall', {});
+    }
+
+    configureUpnp() {
+        this.sendToBackend('configureUpnp', {});
+    }
+
+    runDiagnostics() {
+        this.sendToBackend('runDiagnostics', {});
     }
 
     showUpdateBanner(data) {

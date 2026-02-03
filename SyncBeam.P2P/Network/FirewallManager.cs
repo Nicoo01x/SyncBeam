@@ -289,9 +289,19 @@ public static class FirewallManager
             using var process = Process.Start(startInfo);
             if (process == null) return string.Empty;
 
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            process.WaitForExit(5000);
+            // Read output asynchronously to avoid deadlock when buffers fill
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            if (!process.WaitForExit(5000))
+            {
+                try { process.Kill(); } catch { }
+                return "Error: Command timed out";
+            }
+
+            // Now safe to get results since process has exited
+            var output = outputTask.GetAwaiter().GetResult();
+            var error = errorTask.GetAwaiter().GetResult();
 
             return output + error;
         }

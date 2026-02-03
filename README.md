@@ -4,7 +4,7 @@
 
 ### P2P File and Clipboard Transfer for Windows
 
-[![Version](https://img.shields.io/badge/Version-3.0.8-4747B5.svg)](https://github.com/Nicoo01x/SyncBeam/releases)
+[![Version](https://img.shields.io/badge/Version-4.0.0-4747B5.svg)](https://github.com/Nicoo01x/SyncBeam/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6366f1.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)](https://www.microsoft.com/windows)
@@ -30,12 +30,20 @@
 
 ---
 
-## What's New in v3.0
+## What's New in v4.0
 
-- **Zero Configuration**: No more project secrets - devices auto-discover and connect automatically
-- **Network Scanner**: See all devices on your network (computers, phones, routers, etc.)
-- **Device Icons**: Visual identification with device-type specific icons
-- **Improved UI**: Fixed-height cards and better device name resolution
+- **Automatic Firewall Configuration**: No more manual scripts - SyncBeam configures Windows Firewall automatically
+- **UPnP Port Mapping**: Automatically opens ports on your router for external connections
+- **NAT Detection**: Detects NAT type using STUN servers for better connectivity
+- **Network Diagnostics**: Built-in diagnostic tools to troubleshoot connection issues
+- **Hole Punching**: Improved NAT traversal for connecting peers behind different NATs
+- **Better Error Messages**: Detailed diagnostics when connections fail
+
+### Previous in v3.0
+
+- **Zero Configuration**: Devices auto-discover and connect automatically
+- **Network Scanner**: See all devices on your network
+- **E2E Encryption**: Military-grade security with Noise Protocol
 
 ---
 
@@ -122,6 +130,7 @@ SyncBeam/
 │   ├── Handshake/             # Noise Protocol XX
 │   ├── Transport/             # Secure TCP transport
 │   ├── NatTraversal/          # STUN + hole punching
+│   ├── Network/               # Firewall, UPnP, Diagnostics
 │   └── PeerManager.cs         # Peer management
 │
 ├── SyncBeam.Streams/          # Transfer engine
