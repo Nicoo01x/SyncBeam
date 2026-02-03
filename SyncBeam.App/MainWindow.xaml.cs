@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private ClipboardWatcher? _clipboardWatcher;
     private OutboxWatcher? _outboxWatcher;
     private UpdateChecker? _updateChecker;
+    private AppSettings _settings;
 
     private readonly string _syncBeamPath;
 
@@ -33,15 +34,82 @@ public partial class MainWindow : Window
         // Ensure SyncBeam directory exists
         Directory.CreateDirectory(_syncBeamPath);
 
+        // Load settings
+        _settings = AppSettings.Load();
+
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        // Check if we were launched to configure firewall
+        var args = Environment.GetCommandLineArgs();
+        if (args.Contains("--configure-firewall"))
+        {
+            await ConfigureFirewallAndExitAsync();
+            return;
+        }
+
         await InitializeWebViewAsync();
         InitializeBackend();
         await CheckForUpdatesAsync();
+
+        // Check if firewall needs configuration
+        await CheckFirewallOnStartupAsync();
+    }
+
+    private async Task ConfigureFirewallAndExitAsync()
+    {
+        // This runs when app is elevated to configure firewall
+        try
+        {
+            var result = SyncBeam.P2P.Network.FirewallManager.ConfigureRules(_settings.ListenPort, _settings.ListenPort);
+            if (result.Success)
+            {
+                MessageBox.Show(
+                    "Firewall configured successfully!\n\nYou can now run SyncBeam normally.",
+                    "SyncBeam",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Failed to configure firewall:\n{result.Message}",
+                    "SyncBeam",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Error configuring firewall:\n{ex.Message}",
+                "SyncBeam",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+
+        Application.Current.Shutdown();
+    }
+
+    private async Task CheckFirewallOnStartupAsync()
+    {
+        // Wait a bit for the network setup to run first
+        await Task.Delay(2000);
+
+        // Check if firewall needs configuration
+        if (!SyncBeam.P2P.Network.FirewallManager.AreRulesConfigured() &&
+            !SyncBeam.P2P.Network.FirewallManager.IsRunningAsAdmin())
+        {
+            // Send event to UI to ask user
+            SendToUI("firewallSetupRequired", new
+            {
+                message = "SyncBeam needs to configure Windows Firewall to allow connections from other devices.",
+                port = _settings.ListenPort
+            });
+        }
     }
 
     private async Task CheckForUpdatesAsync()
@@ -100,8 +168,8 @@ public partial class MainWindow : Window
 
     private void InitializeBackend()
     {
-        // Initialize PeerManager (auto-discovers and auto-connects to LAN peers)
-        _peerManager = new PeerManager();
+        // Initialize PeerManager with configured port
+        _peerManager = new PeerManager(_settings.ListenPort);
 
         _peerManager.PeerDiscovered += (_, e) =>
         {
@@ -402,7 +470,97 @@ public partial class MainWindow : Window
                 if (!string.IsNullOrEmpty(checkIp))
                     await CheckPeerConnectivityAsync(checkIp, checkPort);
                 break;
+
+            case "savePort":
+                var newPort = data.GetProperty("port").GetInt32();
+                SavePortSetting(newPort);
+                break;
+
+            case "getSettings":
+                SendCurrentSettings();
+                break;
+
+            case "requestFirewallSetup":
+                RequestFirewallElevation();
+                break;
         }
+    }
+
+    private void RequestFirewallElevation()
+    {
+        try
+        {
+            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (exePath == null)
+            {
+                SendToUI("firewallSetupResult", new { success = false, message = "Could not find application path" });
+                return;
+            }
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                Arguments = "--configure-firewall",
+                UseShellExecute = true,
+                Verb = "runas" // This triggers UAC elevation
+            };
+
+            System.Diagnostics.Process.Start(startInfo);
+
+            // Close this instance - the elevated one will configure firewall
+            Application.Current.Shutdown();
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // User cancelled UAC prompt
+            SendToUI("firewallSetupResult", new
+            {
+                success = false,
+                message = "Administrator permission was denied. You can configure firewall manually in Settings."
+            });
+        }
+        catch (Exception ex)
+        {
+            SendToUI("firewallSetupResult", new { success = false, message = ex.Message });
+        }
+    }
+
+    private void SavePortSetting(int newPort)
+    {
+        if (newPort < 1024 || newPort > 65535)
+        {
+            SendToUI("portSaveResult", new
+            {
+                success = false,
+                message = "Port must be between 1024 and 65535"
+            });
+            return;
+        }
+
+        var currentPort = _settings.ListenPort;
+        _settings.ListenPort = newPort;
+        _settings.Save();
+
+        var needsRestart = newPort != currentPort;
+
+        SendToUI("portSaveResult", new
+        {
+            success = true,
+            port = newPort,
+            needsRestart,
+            message = needsRestart
+                ? "Port saved. Restart SyncBeam for changes to take effect."
+                : "Port saved."
+        });
+    }
+
+    private void SendCurrentSettings()
+    {
+        SendToUI("settings", new
+        {
+            listenPort = _settings.ListenPort,
+            currentListenPort = _peerManager?.ListenPort ?? _settings.ListenPort
+        });
     }
 
     private async Task ConfigureFirewallAsync()

@@ -192,10 +192,20 @@
 
                     <div class="setting-group">
                         <h3 data-i18n="settings.network">Network</h3>
-                        <div class="setting-item">
+                        <div class="setting-item port-setting">
                             <label data-i18n="settings.listenPort">Listen Port</label>
-                            <span class="setting-value" id="listenPort">-</span>
+                            <div class="port-input-group">
+                                <input type="number" id="listenPortInput" min="1024" max="65535" value="42420" />
+                                <button class="btn btn-primary btn-sm" id="savePortBtn" onclick="app.savePort()">
+                                    <span data-i18n="settings.savePort">Save</span>
+                                </button>
+                            </div>
                         </div>
+                        <div class="setting-item">
+                            <label data-i18n="settings.currentPort">Current Port</label>
+                            <span class="setting-value" id="currentListenPort">-</span>
+                        </div>
+                        <p class="setting-hint" id="portHint" style="display: none;"></p>
                     </div>
 
                     <div class="setting-group">

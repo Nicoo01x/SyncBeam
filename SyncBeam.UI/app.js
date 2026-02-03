@@ -52,7 +52,17 @@ const i18n = {
         'settings.publicIp': 'Public IP',
         'settings.configure': 'Configure',
         'settings.openPort': 'Open Port',
-        'settings.runDiagnostics': 'Run Diagnostics'
+        'settings.runDiagnostics': 'Run Diagnostics',
+        'settings.savePort': 'Save',
+        'settings.currentPort': 'Current Port',
+        'settings.portSaved': 'Port saved',
+        'settings.restartRequired': 'Restart SyncBeam for changes to take effect',
+        'firewall.setupTitle': 'Firewall Configuration',
+        'firewall.setupMessage': 'SyncBeam needs to configure Windows Firewall to allow connections from other devices on your network.',
+        'firewall.port': 'Port',
+        'firewall.configure': 'Configure Firewall',
+        'firewall.skip': 'Skip for now',
+        'firewall.hint': 'This requires administrator permission. SyncBeam will restart to apply changes.'
     },
     es: {
         initializing: 'Iniciando...',
@@ -104,7 +114,17 @@ const i18n = {
         'settings.publicIp': 'IP Pública',
         'settings.configure': 'Configurar',
         'settings.openPort': 'Abrir Puerto',
-        'settings.runDiagnostics': 'Diagnóstico'
+        'settings.runDiagnostics': 'Diagnóstico',
+        'settings.savePort': 'Guardar',
+        'settings.currentPort': 'Puerto Actual',
+        'settings.portSaved': 'Puerto guardado',
+        'settings.restartRequired': 'Reinicia SyncBeam para aplicar los cambios',
+        'firewall.setupTitle': 'Configuración de Firewall',
+        'firewall.setupMessage': 'SyncBeam necesita configurar el Firewall de Windows para permitir conexiones de otros dispositivos en tu red.',
+        'firewall.port': 'Puerto',
+        'firewall.configure': 'Configurar Firewall',
+        'firewall.skip': 'Omitir por ahora',
+        'firewall.hint': 'Esto requiere permisos de administrador. SyncBeam se reiniciará para aplicar los cambios.'
     }
 };
 
@@ -135,6 +155,7 @@ class SyncBeamApp {
 
         setTimeout(() => {
             this.sendToBackend('getState', {});
+            this.sendToBackend('getSettings', {});
         }, 500);
     }
 
@@ -494,6 +515,8 @@ class SyncBeamApp {
                 this.updateLocalPeerInfo();
                 this.updateSettingsInfo();
                 this.renderPeers();
+                // Update network status panel with initial state
+                this.updateFullNetworkStatus(data);
                 break;
 
             case 'peerDiscovered':
@@ -638,7 +661,127 @@ class SyncBeamApp {
             case 'diagnosticsStarted':
                 this.showNotification('Running diagnostics...');
                 break;
+
+            case 'settings':
+                this.handleSettings(data);
+                break;
+
+            case 'portSaveResult':
+                this.handlePortSaveResult(data);
+                break;
+
+            case 'firewallSetupRequired':
+                this.showFirewallSetupDialog(data);
+                break;
+
+            case 'firewallSetupResult':
+                if (!data.success) {
+                    this.showNotification(data.message);
+                }
+                break;
         }
+    }
+
+    handleSettings(data) {
+        const portInput = document.getElementById('listenPortInput');
+        const currentPort = document.getElementById('currentListenPort');
+
+        if (portInput && data.listenPort) {
+            portInput.value = data.listenPort;
+        }
+        if (currentPort && data.currentListenPort) {
+            currentPort.textContent = data.currentListenPort;
+        }
+    }
+
+    handlePortSaveResult(data) {
+        const hint = document.getElementById('portHint');
+
+        if (data.success) {
+            this.showNotification(data.message || this.t('settings.portSaved'));
+
+            if (data.needsRestart && hint) {
+                hint.textContent = this.t('settings.restartRequired');
+                hint.style.display = 'block';
+                hint.className = 'setting-hint warning';
+            }
+
+            // Update current port display
+            const currentPort = document.getElementById('currentListenPort');
+            if (currentPort && !data.needsRestart) {
+                currentPort.textContent = data.port;
+            }
+        } else {
+            this.showNotification(data.message || 'Failed to save port');
+            if (hint) {
+                hint.textContent = data.message;
+                hint.style.display = 'block';
+                hint.className = 'setting-hint error';
+            }
+        }
+    }
+
+    savePort() {
+        const portInput = document.getElementById('listenPortInput');
+        if (!portInput) return;
+
+        const port = parseInt(portInput.value, 10);
+        if (isNaN(port) || port < 1024 || port > 65535) {
+            this.showNotification('Port must be between 1024 and 65535');
+            return;
+        }
+
+        this.sendToBackend('savePort', { port });
+    }
+
+    showFirewallSetupDialog(data) {
+        // Remove existing dialog if any
+        const existing = document.querySelector('.firewall-dialog-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'firewall-dialog-overlay';
+        overlay.innerHTML = `
+            <div class="firewall-dialog">
+                <div class="firewall-dialog-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                </div>
+                <h2>${this.t('firewall.setupTitle')}</h2>
+                <p>${this.t('firewall.setupMessage')}</p>
+                <p class="firewall-port">${this.t('firewall.port')}: <strong>${data.port}</strong></p>
+                <div class="firewall-dialog-actions">
+                    <button class="btn btn-primary" id="acceptFirewallBtn">
+                        ${this.t('firewall.configure')}
+                    </button>
+                    <button class="btn btn-secondary" id="skipFirewallBtn">
+                        ${this.t('firewall.skip')}
+                    </button>
+                </div>
+                <p class="firewall-hint">${this.t('firewall.hint')}</p>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // Animate in
+        setTimeout(() => overlay.classList.add('show'), 10);
+
+        // Handle buttons
+        document.getElementById('acceptFirewallBtn').addEventListener('click', () => {
+            this.sendToBackend('requestFirewallSetup', {});
+            overlay.remove();
+        });
+
+        document.getElementById('skipFirewallBtn').addEventListener('click', () => {
+            overlay.classList.remove('show');
+            setTimeout(() => overlay.remove(), 300);
+        });
+    }
+
+    requestFirewallSetup() {
+        this.sendToBackend('requestFirewallSetup', {});
     }
 
     updateNetworkStatusItem(component, status, message) {
@@ -866,9 +1009,9 @@ Recommendations:
             `;
         }
 
-        const listenPort = document.getElementById('listenPort');
-        if (listenPort && this.state.listenPort) {
-            listenPort.textContent = this.state.listenPort;
+        const currentPort = document.getElementById('currentListenPort');
+        if (currentPort && this.state.listenPort) {
+            currentPort.textContent = this.state.listenPort;
         }
     }
 

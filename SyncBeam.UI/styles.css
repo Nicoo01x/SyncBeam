@@ -900,6 +900,57 @@ body {
     font-size: 13px;
     color: var(--text-muted);
     margin-top: 8px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+}
+
+.setting-hint.warning {
+    color: var(--warning);
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.setting-hint.error {
+    color: var(--error);
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+/* Port Input Group */
+.port-setting {
+    display: flex;
+    flex-direction: column;
+}
+
+.port-input-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.port-input-group input[type="number"] {
+    flex: 1;
+    max-width: 140px;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+    transition: var(--transition-base);
+}
+
+.port-input-group input[type="number"]:focus {
+    outline: none;
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 3px rgba(71, 71, 181, 0.2);
+}
+
+.port-input-group input[type="number"]::-webkit-inner-spin-button,
+.port-input-group input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
 }
 
 .input {
@@ -1295,4 +1346,104 @@ body {
 #runDiagnosticsBtn {
     width: 100%;
     justify-content: center;
+}
+
+/* Firewall Setup Dialog */
+.firewall-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.firewall-dialog-overlay.show {
+    opacity: 1;
+}
+
+.firewall-dialog {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.firewall-dialog-overlay.show .firewall-dialog {
+    transform: scale(1);
+}
+
+.firewall-dialog-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--accent-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: var(--shadow-glow);
+}
+
+.firewall-dialog-icon svg {
+    width: 32px;
+    height: 32px;
+    color: white;
+}
+
+.firewall-dialog h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.firewall-dialog p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.firewall-port {
+    background: var(--bg-tertiary);
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-family: 'Consolas', monospace;
+    margin-bottom: 24px;
+}
+
+.firewall-port strong {
+    color: var(--color-secondary-light);
+}
+
+.firewall-dialog-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.firewall-dialog-actions .btn {
+    flex: 1;
+    max-width: 160px;
+}
+
+.firewall-hint {
+    font-size: 12px !important;
+    color: var(--text-muted) !important;
+    margin-bottom: 0 !important;
 }
